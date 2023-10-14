@@ -26,7 +26,7 @@ limits = []
 
 
 def save_token(text):
-    with open(r"D:\Token.txt", 'w') as file:
+    with open(r"./Token.txt", 'w') as file:
         file.write(text)
 
 
@@ -44,6 +44,7 @@ def get_ocr():
     img = Image.open('./b.png')
     img.show()
     url = 'https://api-xcx-qunsou.weiyoubot.cn/xcx/enroll_web/v1/pc_login?code=%s' % code
+    os.remove('./b.png')
     while True:
         ret = requests.get(url).json()
         if ret['msg'] != 'please wait':
@@ -53,9 +54,14 @@ def get_ocr():
 
 
 def Tokens():
-    if os.path.exists(r"D:\Token.txt"):
-        with open(r'D:\Token.txt', 'r') as file:
-            return file.read()
+    if os.path.exists(r"Token.txt"):
+        file_time = os.path.getctime(r"Token.txt")
+        current_timestamp = time.time()
+        if current_timestamp - file_time <= 18000:
+            with open(r'Token.txt', 'r') as file:
+                return file.read()
+        else:
+            return get_ocr()
     else:
         return get_ocr()
 

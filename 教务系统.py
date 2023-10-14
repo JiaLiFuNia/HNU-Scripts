@@ -12,7 +12,7 @@ from js2py import eval_js
 from lxml import html, etree
 
 print("-----------------------欢迎使用-----------------------")
-current_version = 3.5
+current_version = 3.6
 latest_version = requests.get("https://raw.gitmirror.com/JiaLiFuNia/midflower.github.io/main/htu_version.json").json()[
     'version']
 if current_version < latest_version:
@@ -36,7 +36,7 @@ print("在线人数：" + str(getOnlineMembers_response["data"]))
 
 # 保存Cookies
 def cookies_save(text):
-    with open("D:\cookies.txt", 'w') as file:
+    with open(r"D:\cookies.txt", 'w') as file:
         file.write(text)
 
 
@@ -131,36 +131,20 @@ def add(cookies):
         # 筛选课程
         if add_way == 3:
             print('-----------------------筛选选课-----------------------')
-            print('''1、博约核心
-            1.公共艺术   2.创新创业   3.健康人生
-            4.科学思维   5.国际视野   6.社会人文
-        2、博约百花
-            1.人文科学   2.社会科学   3.自然科学
-        3、博约经典''')
-            print("""   如选择博约百花（人文科学），请输入 2.1；
+            print('''一、博约核心
+            0.公共艺术   1.创新创业   2.健康人生
+            3.科学思维   4.国际视野   5.社会人文
+        二、博约百花
+            6.人文科学   7.社会科学   8.自然科学
+        三、博约经典
+            9.博约经典''')
+            kclxs = ['公共艺术', '创新创业', '健康人生', '科学思维', '国际视野', '社会人文', '人文科学', '社会科学',
+                     '自然科学', '博约经典']
+            print("""   如选择博约百花（人文科学），请输入6；
           输入其他数字默认为博约经典；""")
             # 输入选课类型
-            kclxnum = input("输入数字：")
-            if kclxnum == '1.1':
-                kcflmc = "博约核心（公共艺术）"
-            elif kclxnum == '1.2':
-                kcflmc = "博约核心（创新创业）"
-            elif kclxnum == '1.3':
-                kcflmc = "博约核心（健康人生）"
-            elif kclxnum == '1.4':
-                kcflmc = "博约核心（科学思维）"
-            elif kclxnum == '1.5':
-                kcflmc = "博约核心（国际视野）"
-            elif kclxnum == '1.6':
-                kcflmc = "博约核心（社会人文）"
-            elif kclxnum == '2.1':
-                kcflmc = "博约百花（人文科学）"
-            elif kclxnum == '2.2':
-                kcflmc = "博约百花（社会科学）"
-            elif kclxnum == '2.3':
-                kcflmc = "博约百花（自然科学）"
-            else:
-                kcflmc = "博约经典"
+            kclxnum = int(input("输入数字："))
+            kcflmc = kclxs[kclxnum]
             print('你选择了' + kcflmc)
             print('请输入目标选课的上课时间（如：周5的第07,08节课，就输入5和07,08）')
             zc_input = int(input("星期几（如:4）："))
@@ -177,6 +161,8 @@ def add(cookies):
             res = requests.post(url=url, headers=headers, data=data, cookies=cookies).json()
             rows = res['rows']
             # 循环输出符合条件的课程基本信息
+            kcrwdms = []
+            index = 1
             for i in rows:
                 last = str(int(i['pkrs']) - int(i['jxbrs']))
                 if last != '0':
@@ -184,24 +170,28 @@ def add(cookies):
                         # 通过调用fore_add课程时间的函数，请求上课的具体时间
                         data_list = add_time(i['kcrwdm'], cookies)
                         if zc_input == data_list[0]['zc'] and jcdm2_input == data_list[0]['jcdm2']:
-                            print("课程名称：" + i['kcmc'] + " 课程代码：" + str(i['kcrwdm']) + " 课程板块：" + i[
-                                'kcflmc'] + " 学分：" + str(i['xf']) + " 还有" + last + "个名额" + " 该课程共有" + str(
-                                data_list[-1]['kxh']) + "节课，" + '第' + str(data_list[0]['zc']) + '-' + str(
-                                data_list[-1]['zc']) + '周的' + '星期' + str(data_list[0]['xq']) + '的第' + str(
-                                data_list[0]['jccdm2']) + '节要上课')
+                            print(
+                                str(index) + " 课程名称：" + i['kcmc'] + " 课程代码：" + str(i['kcrwdm']) + " 课程板块：" +
+                                i[
+                                    'kcflmc'] + " 学分：" + str(
+                                    i['xf']) + " 还有" + last + "个名额" + " 该课程共有" + str(
+                                    data_list[-1]['kxh']) + "节课，" + '第' + str(data_list[0]['zc']) + '-' + str(
+                                    data_list[-1]['zc']) + '周的' + '星期' + str(data_list[0]['xq']) + '的第' + str(
+                                    data_list[0]['jccdm2']) + '节要上课')
+                            i['kcrwdm'].append(kcrwdms)
                         else:
                             print("当前时间段没有目标类型的课程！")
-                            add(cookies)
+                        add(cookies)
             # 获取课程代码
-            kcrwdm = int(input("输入目标选课的课程代码："))
+            kcrwdms_index = int(input("输入目标选课的序号："))
             # 调用选课函数开始选课
-            adding(cookies, kcrwdm)
+            adding(cookies, kcrwdms[kcrwdms_index - 1])
         # 定时课程
         elif add_way == 2:
             print("-----------------------定时选课-----------------------")
             kcrwdm = int(input("输入目标选课的课程代码："))
-            print("预定选课时间：")
-            hour = int(input("输入小时："))
+            print("预定今天选课时间：")
+            hour = int(input("输入时刻："))
             minute = int(input("输入分钟："))
             # 获取当前时间
             current_time = datetime.datetime.now()
@@ -362,8 +352,14 @@ def score(cookies):
     score_response = \
         requests.post('https://jwc.htu.edu.cn/new/student/xskccj/kccjDatas', cookies=cookies, headers=headers,
                       data=data).json()["rows"]
+    cjjd_sum = 0
+    cjjd_index = 0
     for scores in score_response:
-        print("课程名称: {:<15}总成绩: {:<10}绩点: {:<5}".format(scores['kcmc'], scores['zcj'], scores['cjjd']))
+        cjjd_index = cjjd_index + 1
+        print("{:<3} 课程名称: {:<15}总成绩: {:<10}绩点: {:<5}".format(cjjd_index, scores['kcmc'], scores['zcj'],
+                                                                       scores['cjjd']))
+        cjjd_sum = cjjd_sum + scores['cjjd']
+    print(f'平均绩点为：{cjjd_sum / cjjd_index}')
 
 
 # 菜单函数
@@ -409,7 +405,7 @@ def cookies_read():
         if name_elements:
             name = name_elements[0].strip()
             if name in white_names:
-                get_ip(name, jsessionid)
+                # get_ip(name, jsessionid)
                 print("用户姓名：" + name)
                 fun(cookies)
                 return cookies
@@ -524,7 +520,7 @@ def username():
     name_elements = get_name(cookies)
     if name_elements:
         name = name_elements[0].strip()
-        get_ip(name, jsessionid)
+        # get_ip(name, jsessionid)
         if name in white_names:
             print("你好！ " + name.strip() + ' ' + login_response.json()['message'] + "!")
             # print("Cookies:"+jsessionid)
@@ -537,7 +533,7 @@ def username():
             os.remove(r"D:\student_ID.txt")
             main()
     else:
-        get_ip("登录失败", jsessionid)
+        # get_ip("登录失败", jsessionid)
         print('登录失败！')
         print(login_response.json()['message'] + "，请检查后重新输入！")
         os.remove(r"D:\pwd.txt")
@@ -557,7 +553,7 @@ def jsession():
     name_elements = get_name(cookies)
     if name_elements:
         name = name_elements[0].strip()
-        get_ip(name, jsessionid)
+        # get_ip(name, jsessionid)
         if name in white_names:
             print("你好！ " + name + ' 登录成功！')
             cookies_save(jsessionid)
@@ -566,7 +562,7 @@ def jsession():
             print('登录失败！请检查登录信息后重新输入！')
             main()
     else:
-        get_ip("登录失败", jsessionid)
+        # get_ip("登录失败", jsessionid)
         print('登录失败！请检查登录信息后重新输入！')
         main()
 
