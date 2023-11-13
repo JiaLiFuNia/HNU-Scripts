@@ -12,9 +12,14 @@ from js2py import eval_js
 from lxml import html, etree
 
 print("-----------------------欢迎使用-----------------------")
-current_version = 3.6
-latest_version = requests.get("https://raw.gitmirror.com/JiaLiFuNia/midflower.github.io/main/htu_version.json").json()[
-    'version']
+current_version = latest_version = 3.6
+res_version = requests.get("https://gitee.com/jialifuniya_xbh/vacate/raw/master/htu_version.json")
+if res_version.status_code == 200:
+    latest_version = res_version.json()['version']
+else:
+    print("无网络链接!!!")
+    input("按回车键退出...")
+    sys.exit()
 if current_version < latest_version:
     print("当前版本：" + str(current_version))
     print("最新版本：" + str(latest_version))
@@ -399,7 +404,7 @@ def cookies_read():
             "JSESSIONID": jsessionid
         }
         white_names = \
-            requests.get('https://raw.gitmirror.com/JiaLiFuNia/midflower.github.io/main/whitenames.json').json()[
+            requests.get('https://gitee.com/jialifuniya_xbh/vacate/raw/master/whitenames.json').json()[
                 'whitenames']
         name_elements = get_name(cookies)
         if name_elements:
@@ -428,7 +433,7 @@ def cookies_read():
 def username():
     # 输入登录信息
     valid_usernames = \
-        requests.get("https://raw.gitmirror.com/JiaLiFuNia/midflower.github.io/main/whitenames.json").json()[
+        requests.get("https://gitee.com/jialifuniya_xbh/vacate/raw/master/whitenames.json").json()[
             'valid_usernames']
     try:
         with open(r"D:\pwd.txt", "r") as file:
@@ -478,7 +483,7 @@ def username():
     os.remove(img_path)
 
     # 密码加密使用了aes.js文件
-    aes_response = requests.get('https://raw.gitmirror.com/JiaLiFuNia/midflower.github.io/main/aes.js')
+    aes_response = requests.get('https://gitee.com/jialifuniya_xbh/vacate/raw/master/aes.js')
     with open(r'D:\aes.js', 'wb') as js_file:
         js_file.write(aes_response.content)
     # 读取 JavaScript 代码
@@ -515,7 +520,7 @@ def username():
     # 发送登录请求
     login_url = 'https://jwc.htu.edu.cn/new/login'  # 替换为实际的登录页面URL
     login_response = session.post(url=login_url, data=login_data, headers=login_headers, cookies=cookies)
-    white_names = requests.get('https://raw.gitmirror.com/JiaLiFuNia/midflower.github.io/main/whitenames.json').json()[
+    white_names = requests.get('https://gitee.com/jialifuniya_xbh/vacate/raw/master/whitenames.json').json()[
         'whitenames']
     name_elements = get_name(cookies)
     if name_elements:
@@ -548,7 +553,7 @@ def jsession():
     cookies = {
         "JSESSIONID": jsessionid,
     }
-    white_names = requests.get('https://raw.gitmirror.com/JiaLiFuNia/midflower.github.io/main/whitenames.json').json()[
+    white_names = requests.get('https://gitee.com/jialifuniya_xbh/vacate/raw/master/whitenames.json').json()[
         'whitenames']
     name_elements = get_name(cookies)
     if name_elements:
