@@ -22,6 +22,7 @@ except:
     input("按回车键退出...")
     sys.exit()
 
+
 if current_version < latest_version:
     print("当前版本：" + str(current_version))
     print("最新版本：" + str(latest_version))
