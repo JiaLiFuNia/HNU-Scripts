@@ -87,6 +87,26 @@ def get(url):
     return json_list
 
 
+def image():
+    image_url_list = {
+        'code': 200,
+        'message': 'success',
+        'data': [
+
+        ]
+    }
+    url_list = 'https://www.htu.edu.cn/'
+    response = requests.get(url_list)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    image_urls = soup.select('ul.news_list li.news div.news_box div.news_imgs img')
+    for image_url in image_urls:
+        image_url = 'https://www.htu.edu.cn' + image_url.get('src')
+        image_url_list['data'].append(image_url)
+    print(image_urls)
+    print(image_url_list)
+    return image_url_list
+
+
 # 保存文件
 def save(text, filename):
     json_str = json.dumps(text)
@@ -102,6 +122,7 @@ def save_list(url, file_name):
     print('success')
 
 
+save(image(), 'imagelist')
 save_list('https://www.htu.edu.cn/8954/list', 'activenewslist')
 save_list('https://www.htu.edu.cn/8957/list', 'othernewslist')
 save_list('https://www.htu.edu.cn/8955/list', 'newslist')
