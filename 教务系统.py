@@ -14,9 +14,10 @@ from js2py import eval_js
 from lxml import html
 
 print("------------------------欢迎使用------------------------")
-current_version = 4.2
+current_version = 4.7
+gitee_url = 'https://gitee.com/xhand_xbh/hnu/raw/master'
 try:
-    res_version = requests.get("https://gitee.com/jialifuniya_xbh/vacate/raw/master/htu_version.json")
+    res_version = requests.get(gitee_url + "/htu_version.json")
     latest_version = res_version.json()['version']
 except Exception as e:
     print("无网络链接!请连接网络后，重试！")
@@ -40,9 +41,14 @@ headers = {
 getOnlineMembers_response = json.loads(
     requests.post('https://jwc.htu.edu.cn/new/login/getOnlineMembers', headers=headers).text)
 print(f"在线人数：{getOnlineMembers_response['data']}")
+
 # 获取当前学期和需要保留的键
-xq_keys = requests.get('https://gitee.com/jialifuniya_xbh/vacate/raw/master/kcml.json').json()
+xq_keys = requests.get(gitee_url + '/xq_keys.json').json()
 xnxqdm = xq_keys['xnxqdm']
+# 获取白名单
+white = requests.get(gitee_url + '/whitenames.json').json()
+white_names = white['whitenames']
+valid_usernames = white['valid_usernames']
 
 
 # 保存Cookies
@@ -57,7 +63,7 @@ def file_save(path, text):
         file.write(text)
 
 
-# 如果登录成功获取用用户的姓名
+# 如果登录成功获取用户的姓名
 def get_name(cookies):
     logined_url = 'https://jwc.htu.edu.cn/new/welcome.page'
     logined_response = requests.get(url=logined_url, cookies=cookies).text
@@ -244,7 +250,7 @@ def add(cookies):
             # 课程信息
             elif add_way == 3:
                 print("------------------------课程信息------------------------")
-                print("正在生成信息文件...")
+                print("正在生成信息文件，请稍后...")
                 # 课程代码列表
                 kcdm = []
                 # 遍历所有课程 获取课程代码
@@ -257,6 +263,8 @@ def add(cookies):
                     sum_keys.append(key)
                 # 需要保留的键
                 save_keys = xq_keys['save_keys']
+                # 修改键名称
+                save_keys_zh = xq_keys['save_keys_zh']
                 # 获取需要删除的键值
                 delete_keys = list(set(sum_keys) - set(save_keys))
                 # 格式化后的课程信息
@@ -268,14 +276,14 @@ def add(cookies):
                         timec = add_time(i, cookies)[-1]
                         # 删除键
                         for j in delete_keys:
-                            timec.pop(j, '没有该键(key)')
+                            timec.pop(j, '没有该键')
                             kcmls.append(timec)
                         print(f"[{index}] {timec}")
                         index = index + 1
                     # 保存文件
                     f = open('课程信息目录.csv', 'w')
                     csv_write = csv.writer(f)
-                    csv_write.writerow(kcmls[0].keys())
+                    csv_write.writerow(save_keys_zh)
                     for kcml in kcmls:
                         csv_write.writerow(kcml.values())
                     f.close()
@@ -284,7 +292,6 @@ def add(cookies):
                     print('你可以查看"课程信息目录.csv"辅助选课')
                 else:
                     print("课程信息为空，生成失败")
-
                 fun(cookies)
             # 退出选课
             else:
@@ -417,9 +424,6 @@ def cookies_read():
         cookies = {
             "JSESSIONID": jsessionid
         }
-        white_names = \
-            requests.get('https://gitee.com/jialifuniya_xbh/vacate/raw/master/whitenames.json').json()[
-                'whitenames']
         name_elements = get_name(cookies)
         if name_elements:
             name = name_elements[0].strip()
@@ -445,9 +449,7 @@ def cookies_read():
 # 密码登录
 def username():
     # 输入登录信息
-    valid_usernames = \
-        requests.get("https://gitee.com/jialifuniya_xbh/vacate/raw/master/whitenames.json").json()[
-            'valid_usernames']
+    valid_usernames = requests.get(gitee_url + "/whitenames.json").json()['valid_usernames']
     try:
         with open(r"D:\pwd.txt", "r") as file:
             password = file.read()
@@ -496,7 +498,7 @@ def username():
         verifycode = 'abcd'
 
     # 密码加密使用了aes.js文件
-    aes_response = requests.get('https://gitee.com/jialifuniya_xbh/vacate/raw/master/aes.js')
+    aes_response = requests.get(gitee_url + '/aes.js')
     with open(r'D:\aes.js', 'wb') as js_file:
         js_file.write(aes_response.content)
     # 读取 JavaScript 代码
@@ -518,6 +520,7 @@ def username():
     password_key = eval_js(js_code)
     # print("加密后的密码为："+password_key)
     os.remove(js_file_path)
+    js_file.close()
     login_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.58',
@@ -533,8 +536,6 @@ def username():
     # 发送登录请求
     login_url = 'https://jwc.htu.edu.cn/new/login'  # 替换为实际的登录页面URL
     login_response = session.post(url=login_url, data=login_data, headers=login_headers, cookies=cookies)
-    white_names = requests.get('https://gitee.com/jialifuniya_xbh/vacate/raw/master/whitenames.json').json()[
-        'whitenames']
     name_elements = get_name(cookies)
     if name_elements:
         name = name_elements[0].strip()
@@ -567,8 +568,6 @@ def jsession():
     cookies = {
         "JSESSIONID": jsessionid,
     }
-    white_names = requests.get('https://gitee.com/jialifuniya_xbh/vacate/raw/master/whitenames.json').json()[
-        'whitenames']
     name_elements = get_name(cookies)
     if name_elements:
         name = name_elements[0].strip()
