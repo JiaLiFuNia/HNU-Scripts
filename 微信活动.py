@@ -76,8 +76,7 @@ index = 1
 print('活动信息如下：')
 for i in active_datas:
     if i['status'] != 2:
-        print("编号：%d 活动名称：%s 人数限制：%s 开始时间: %s" % (
-            index, i["title"], i['limit'], datetime.datetime.fromtimestamp(i['start_time'])))
+        print(f"序号：[{index}] 活动名称：{i['title']} 人数限制：{i['limit']} 开始时间: {datetime.datetime.fromtimestamp(i['start_time'])}")
         index += 1
         eids.append(i['eid'])
         titles.append(i['title'])
@@ -86,7 +85,7 @@ for i in active_datas:
 timestamp = int(time.time())
 print("当前时间：" + str(datetime.datetime.fromtimestamp(timestamp)))
 url = 'https://api-xcx-qunsou.weiyoubot.cn/xcx/enroll/v5/enroll'
-num = int(input("请输入编号："))
+num = int(input("请输入序号："))
 # print(times[num - 1])
 # print(timestamp)
 name = input("输入姓名：")
@@ -110,10 +109,12 @@ timestamp = int(time.time())
 if times[num - 1] > timestamp:
     print("正在等待达到预定时间...")
     time_sleep = times[num - 1] - timestamp
+    print(f"还有{time_sleep}秒...")
 else:
-    print("活动已开始抢...")
-    time_sleep = 0
-time.sleep(time_sleep)
+    print("报名已开始...")
+    time_sleep = -1
+
+time.sleep(time_sleep + 1)
 response = requests.post(url=url, headers=headers, data=json.dumps(data))
 print(response.json())
 input("点击回车退出...")
