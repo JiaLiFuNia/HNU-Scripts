@@ -1,4 +1,5 @@
 import base64
+import csv
 import datetime
 import json
 import os
@@ -6,9 +7,10 @@ import re
 import sys
 import time
 from datetime import datetime
-import csv
 
 import requests
+from Crypto.Cipher import PKCS1_v1_5 as Cipher_pksc1_v1_5
+from Crypto.PublicKey import RSA
 from bs4 import BeautifulSoup
 from js2py import eval_js
 from lxml import html
@@ -37,6 +39,14 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 '
                   'Safari/537.36 Edg/114.0.1823.43 '
 }
+new_login_cookies = {
+    'language': 'zh-CN',
+}
+new_login_headers = {
+    'Referer': 'https://jwc.htu.edu.cn/app/?code',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 9; ASUS_X00TD; Flow) AppleWebKit/537.36 (KHTML, like Gecko) '
+                  'Chrome/359.0.0.288 Mobile Safari/537.36',
+}
 # 请求在线人数的url
 getOnlineMembers_response = json.loads(
     requests.post('https://jwc.htu.edu.cn/new/login/getOnlineMembers', headers=headers).text)
@@ -49,11 +59,13 @@ xnxqdm = xq_keys['xnxqdm']
 white = requests.get(gitee_url + '/whitenames.json').json()
 white_names = white['whitenames']
 valid_usernames = white['valid_usernames']
+# 获取密码加密公钥
+public_key = requests.get('https://gitee.com/xhand_xbh/hnu/raw/master/publickey.txt').text
 
 
 # 保存Cookies
 def cookies_save(text):
-    with open(r"D:\cookies.txt", 'w') as file:
+    with open(r"./login_message/cookies.txt", 'w') as file:
         file.write(text)
 
 
@@ -181,61 +193,67 @@ def add(cookies):
                     kcrwdms.append(i['kcrwdm'])
                     kcmcs.append(i['kcmc'])
                 print(f"[{index}] 退出")
-                kcrwdms_index = int(input("输入序号："))
-                if len(rows) >= kcrwdms_index >= 1:
-                    # 调用选课函数开始选课
-                    # adding(cookies, 课程代码, url, 课程名称)
-                    adding(cookies, kcrwdms[kcrwdms_index - 1], url, kcmcs[kcrwdms_index - 1])
-                else:
-                    if kcrwdms_index == len(rows) + 1:
-                        fun(cookies)
+                kcrwdms_indexs = input("输入序号(多个序号以空格隔开)：").split(" ")
+                kcrwdms_indexs = [int(kcrwdms_indexs) for kcrwdms_indexs in kcrwdms_indexs]
+                print(kcrwdms_indexs)
+                for kcrwdms_index in kcrwdms_indexs:
+                    if len(rows) >= kcrwdms_index >= 1:
+                        # 调用选课函数开始选课
+                        # adding(cookies, 课程代码, url, 课程名称)
+                        adding(cookies, kcrwdms[kcrwdms_index - 1], url, kcmcs[kcrwdms_index - 1])
                     else:
-                        print("输入的序号无效，请重新输入！")
-                # 循环输出符合条件的课程基本信息
-                '''kcrwdms = []
-                index = 1
-                for i in rows:
-                    last = str(int(i['pkrs']) - int(i['jxbrs']))
-                    if last != '0':
-                        if i['kcflmc'] == kcflmc:
-                            # 通过调用fore_add课程时间的函数，请求上课的具体时间
-                            data_list = add_time(i['kcrwdm'], cookies)
-                            if zc_input == data_list[0]['zc'] and jcdm2_input == data_list[0]['jcdm2']:
-                                print(
-                                    str(index) + " 课程名称：" + i['kcmc'] + " 课程代码：" + str(i['kcrwdm']) + " 课程板块：" +
-                                    i[
-                                        'kcflmc'] + " 学分：" + str(
-                                        i['xf']) + " 还有" + last + "个名额" + " 该课程共有" + str(
-                                        data_list[-1]['kxh']) + "节课，" + '第' + str(data_list[0]['zc']) + '-' + str(
-                                        data_list[-1]['zc']) + '周的' + '星期' + str(data_list[0]['xq']) + '的第' + str(
-                                        data_list[0]['jccdm2']) + '节要上课')
-                                i['kcrwdm'].append(kcrwdms)
-                            else:
-                                print("当前时间段没有目标类型的课程！")
-                            add(cookies)'''
+                        if kcrwdms_index == len(rows) + 1:
+                            fun(cookies)
+                        else:
+                            print("输入的序号无效，请重新输入！")
+                    # 循环输出符合条件的课程基本信息
+                    '''kcrwdms = []
+                    index = 1
+                    for i in rows:
+                        last = str(int(i['pkrs']) - int(i['jxbrs']))
+                        if last != '0':
+                            if i['kcflmc'] == kcflmc:
+                                # 通过调用fore_add课程时间的函数，请求上课的具体时间
+                                data_list = add_time(i['kcrwdm'], cookies)
+                                if zc_input == data_list[0]['zc'] and jcdm2_input == data_list[0]['jcdm2']:
+                                    print(
+                                        str(index) + " 课程名称：" + i['kcmc'] + " 课程代码：" + str(i['kcrwdm']) + " 课程板块：" +
+                                        i[
+                                            'kcflmc'] + " 学分：" + str(
+                                            i['xf']) + " 还有" + last + "个名额" + " 该课程共有" + str(
+                                            data_list[-1]['kxh']) + "节课，" + '第' + str(data_list[0]['zc']) + '-' + str(
+                                            data_list[-1]['zc']) + '周的' + '星期' + str(data_list[0]['xq']) + '的第' + str(
+                                            data_list[0]['jccdm2']) + '节要上课')
+                                    i['kcrwdm'].append(kcrwdms)
+                                else:
+                                    print("当前时间段没有目标类型的课程！")
+                                add(cookies)'''
             # 定时课程
             elif add_way == 2:
                 print("------------------------定时选课------------------------")
-                kcrwdm = input("输入目标选课的课程代码：")
-                kcmc = input("输入目标选课的课程名称：")
+                kcrwdms = input("输入目标选课的课程代码：").split(" ")
+                kcmcs = input("输入目标选课的课程名称：").split(" ")
                 print(f"选课时间：{start_time}")
-                # 获取预定的时间
-                time_object = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
-                hour = time_object.hour
-                minute = time_object.minute
-                # 获取当前时间
-                current_time = datetime.now().replace(microsecond=0)
-                print(f"当前时间：{current_time}")
-                # 判断输入的时间是否合法，小时大于等于当前，分钟大于当前
-                if hour < current_time.hour or minute <= current_time.minute:
-                    adding(cookies, kcrwdm, url, kcmc)
-                else:
-                    desired_time = current_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
-                    time_to_wait = (desired_time - current_time).total_seconds()
-                    print("正在等待达到选课时间...")
-                    time.sleep(time_to_wait)
-                    # 调用adding选课函数开始选课
-                    adding(cookies, kcrwdm, url, kcmc)
+                kcrwdms = [int(kcrwdms) for kcrwdms in kcrwdms]
+                kcmcs = [int(kcmcs) for kcmcs in kcmcs]
+                for i in range(len(kcrwdms)):
+                    # 获取预定的时间
+                    time_object = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+                    hour = time_object.hour
+                    minute = time_object.minute
+                    # 获取当前时间
+                    current_time = datetime.now().replace(microsecond=0)
+                    print(f"当前时间：{current_time}")
+                    # 判断输入的时间是否合法，小时大于等于当前，分钟大于当前
+                    if hour < current_time.hour or minute <= current_time.minute:
+                        adding(cookies, kcrwdms[i], url, kcmcs[i])
+                    else:
+                        desired_time = current_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                        time_to_wait = (desired_time - current_time).total_seconds()
+                        print("正在等待达到选课时间...")
+                        time.sleep(time_to_wait)
+                        # 调用adding选课函数开始选课
+                        adding(cookies, kcrwdms[i], url, kcmcs[i])
             # 已选课程
             elif add_way == 4:
                 print("------------------------已选课程------------------------")
@@ -332,6 +350,7 @@ def adding(cookies, kcrwdm, url, kcmc):
 
 # 获取课程表函数
 def getCalendarWeekDatas(cookies):
+    get_name(cookies)
     print("------------------------课表查询------------------------")
     data = {
         'xnxqdm': xnxqdm,
@@ -359,12 +378,14 @@ def getCalendarWeekDatas(cookies):
         for getCalendarWeekData in xqs[xq]:
             weekdays = getCalendarWeekData['zc'].split(",")
             weekdays = [int(weekday) for weekday in weekdays]
-            print(f"课程名称：{getCalendarWeekData['kcmc']}  授课教师：{getCalendarWeekData['teaxms']} 上课地点：{getCalendarWeekData['jxcdmc']}  上课周数：{min(weekdays)}-{max(weekdays)}周")
+            print(
+                f"课程名称：{getCalendarWeekData['kcmc']}  授课教师：{getCalendarWeekData['teaxms']} 上课地点：{getCalendarWeekData['jxcdmc']}  上课周数：{min(weekdays)}-{max(weekdays)}周")
         print("-------------------------")
 
 
 # 获取考试成绩函数
 def score(cookies):
+    get_name(cookies)
     print("------------------------课程成绩------------------------")
     term_xnxqdm = int(input("请输入要查询的学期（示例：大一第二学期就输入 202202）："))
     data = {
@@ -387,30 +408,119 @@ def score(cookies):
         print("当前学期没有成绩")
 
 
+# 密码加密函数
+def encrpt(pwd, publickey):
+    publickey = '-----BEGIN PUBLIC KEY-----\n' + publickey + '\n-----END PUBLIC KEY-----'
+    rsakey = RSA.importKey(publickey)
+    cipher = Cipher_pksc1_v1_5.new(rsakey)
+    cipher_text = base64.b64encode(cipher.encrypt(pwd.encode()))
+    file_save(r".\login_message/pwd2.txt", cipher_text.decode())
+    return cipher_text.decode()
+
+
+# 智慧教务获取学分
+def haved_score():
+    token = new_jw()['user']['token']
+    print("------------------------已修学分------------------------")
+    login_data = {}
+    login_headers = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 9; ASUS_X00TD; Flow) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/359.0.0.288 Mobile Safari/537.36',
+        'token': token,
+    }
+    session_2 = requests.Session()
+    score_message = session_2.post('https://jwc.htu.edu.cn/dev-api/appapi/Studentcj/kcdlxfDatas',
+                                   cookies=new_login_cookies,
+                                   headers=login_headers,
+                                   json=login_data)
+    if score_message.json()['code'] == 200:
+        index = 1
+        for i in score_message.json()['list']:
+            print(f"[{index}] {i['kcdlmc']} {i['xf']}分")
+            index = index + 1
+    else:
+        print("查询失败！")
+
+
+# 智慧教务获取个人信息
+def person_message():
+    login_message = new_jw()
+    print("------------------------个人信息------------------------")
+    if login_message['code'] == 500:
+        print("获取个人信息失败，请重新登录...")
+        main()
+    elif login_message['code'] == 200:
+        print(f"用户姓名：{login_message['user']['userxm']}")
+        print(f"用户学号：{login_message['user']['userAccount']}")
+        print(f"学院名称：{login_message['user']['userdwmc']}")
+        print(f"身份证号：{login_message['user']['usersfzh']}")
+        print(f"电话号码：{login_message['user']['userdh']}")
+        print(f"登录时间：{login_message['user']['loginTime']}")
+        print(f"登录地点：{login_message['user']['loginIp']}")
+
+
+# 智慧教务登录
+def new_jw():
+    if os.path.exists(r".\login_message\\student_ID.txt"):
+        with open(r".\login_message\\student_ID.txt") as fid:
+            xh = fid.read()
+    else:
+        xh = "0000000000"
+    if os.path.exists(r".\login_message\pwd2.txt"):
+        with open(r".\login_message\\pwd2.txt", "r") as file:
+            key_password = file.read()
+    else:
+        key_password = "0000000000"
+    login_data = {
+        'username': xh,
+        'password': key_password,
+        'code': '',
+        'appid': None,
+    }
+    session_2 = requests.Session()
+    new_jw_url = 'https://jwc.htu.edu.cn/dev-api/appapi/applogin'
+
+    login_message = session_2.post(url=new_jw_url, cookies=new_login_cookies, headers=new_login_headers,
+                                   json=login_data)
+    return login_message.json()
+
+
 # 菜单函数
 def fun(cookies):
     while True:
         print('------------------------选择功能------------------------')
-        print('[1]选课辅助 [2]课表查询 [3]课程成绩 [4]退出程序 [5]删除信息')
-        choice = int(input("输入数字："))
-        if choice == 1:
+        print("""[1]选课辅助 [2]课表查询 [3]课程成绩 [4]已修学分 [5]个人信息
+[6]退出程序 [7]退出登录""")
+        choice = input("输入数字：")
+        if choice == '1':
             add(cookies)
-        elif choice == 2:
+        elif choice == '2':
             getCalendarWeekDatas(cookies)
-        elif choice == 3:
+        elif choice == '3':
             score(cookies)
-        elif choice == 4:
+        elif choice == '6':
             input("按回车键退出...")
             sys.exit()
-        elif choice == 5:
-            if os.path.exists(r"D:\pwd.txt"):
-                os.remove(r"D:\pwd.txt")
-            if os.path.exists(r"D:\student_ID.txt"):
-                os.remove(r"D:\student_ID.txt")
-            if os.path.exists(r"D:\cookies.txt"):
-                os.remove(r"D:\cookies.txt")
-            print("已删除登录信息！")
+        elif choice == '7':
+            if os.path.exists(r".\login_message\\pwd.txt"):
+                os.remove(r".\login_message\\pwd.txt")
+            if os.path.exists(r".\login_message\\student_ID.txt"):
+                os.remove(r".\login_message\\student_ID.txt")
+            if os.path.exists(r".\login_message\\cookies.txt"):
+                os.remove(r".\login_message\\cookies.txt")
+            if os.path.exists(r".\login_message\\pwd2.txt"):
+                os.remove(r".\login_message\\pwd2.txt")
+            print("已退出登录！")
             main()
+        elif choice == '5':
+            person_message()
+            username()
+        elif choice == '4':
+            haved_score()
+            username()
+        elif choice == '\n':
+            input("按回车键退出...")
+            sys.exit()
         else:
             input("按回车键退出...")
             sys.exit()
@@ -419,7 +529,7 @@ def fun(cookies):
 # 读取本地Cookies
 def cookies_read():
     try:
-        with open(r'D:\cookies.txt', 'r') as file:
+        with open(r'./login_message\cookies.txt', 'r') as file:
             jsessionid = file.read()
         cookies = {
             "JSESSIONID": jsessionid
@@ -428,19 +538,18 @@ def cookies_read():
         if name_elements:
             name = name_elements[0].strip()
             if name in white_names:
-                # get_ip(name, jsessionid)
                 print("用户姓名：" + name)
                 fun(cookies)
                 return cookies
             else:
                 main()
         else:
-            if os.path.exists(r"D:\pwd.txt"):
+            if os.path.exists(r"./login_message\pwd.txt"):
                 username()
             else:
                 main()
     except FileNotFoundError:
-        if os.path.exists(r"D:\pwd.txt"):
+        if os.path.exists(r"./login_message\pwd.txt"):
             username()
         else:
             main()
@@ -451,17 +560,17 @@ def username():
     # 输入登录信息
     valid_usernames = requests.get(gitee_url + "/whitenames.json").json()['valid_usernames']
     try:
-        with open(r"D:\pwd.txt", "r") as file:
+        with open(r"./login_message\pwd.txt", "r") as file:
             password = file.read()
-        with open(r"D:\student_ID.txt", "r") as file:
+        with open(r"./login_message\student_ID.txt", "r") as file:
             username = file.read()
     except FileNotFoundError:
         print("------------------------密码登录------------------------")
-        username = input("请输入学号：")
-        password = input("请输入密码：")
-        file_save(r"D:\student_ID.txt", username)
-        file_save(r"D:\pwd.txt", password)
-
+        username = input("输入学号：")
+        password = input("输入密码：")
+        file_save(r"./login_message\student_ID.txt", username)
+        file_save(r"./login_message\pwd.txt", password)
+    encrpt(password, public_key)
     # 获取cookies
     jsessionid_response = requests.post('https://jwc.htu.edu.cn')
     jsessionid = jsessionid_response.cookies.get("JSESSIONID")
@@ -474,7 +583,7 @@ def username():
     verifycode_url = 'https://jwc.htu.edu.cn/yzm?' + str(int(time.time() * 1000 + 3))
     verifycode_response = requests.get(url=verifycode_url, cookies=cookies).content
     # 保存验证码图片
-    with open(r'D:\verifycode_image.jpg', 'wb') as f:
+    with open(r'./login_message\verifycode_image.jpg', 'wb') as f:
         f.write(verifycode_response)
 
     # 识别验证码函数
@@ -490,7 +599,7 @@ def username():
             return result["message"]
 
     # 调用函数识别
-    img_path = r"D:\verifycode_image.jpg"
+    img_path = r"./login_message\verifycode_image.jpg"
     verifycode = base64_api(uname='Jialifuniya', pwd='zxcvbnm123', img=img_path, typeid=3)
     if len(verifycode) == 4:
         os.remove(img_path)
@@ -499,10 +608,10 @@ def username():
 
     # 密码加密使用了aes.js文件
     aes_response = requests.get(gitee_url + '/aes.js')
-    with open(r'D:\aes.js', 'wb') as js_file:
+    with open(r'./login_message\aes.js', 'wb') as js_file:
         js_file.write(aes_response.content)
     # 读取 JavaScript 代码
-    js_file_path = r'D:\aes.js'
+    js_file_path = r'./login_message\aes.js'
     # 检查文件是否存在
     if os.path.exists(js_file_path):
         with open(js_file_path, 'r') as js_file:
@@ -539,7 +648,6 @@ def username():
     name_elements = get_name(cookies)
     if name_elements:
         name = name_elements[0].strip()
-        # get_ip(name, jsessionid)
         if name in white_names:
             print(f"用户姓名：{name.strip()}")
             print(f"登录状态：{login_response.json()['message']}")
@@ -549,15 +657,14 @@ def username():
             return cookies
         else:
             print("登录失败！请检查学号后重新输入")
-            os.remove(r"D:\pwd.txt")
-            os.remove(r"D:\student_ID.txt")
+            os.remove(r"./login_message\pwd.txt")
+            os.remove(r"./login_message\student_ID.txt")
             main()
     else:
-        # get_ip("登录失败", jsessionid)
         print('登录失败！')
         print(login_response.json()['message'] + "，请检查后重新输入！")
-        os.remove(r"D:\pwd.txt")
-        os.remove(r"D:\student_ID.txt")
+        os.remove(r"./login_message\pwd.txt")
+        os.remove(r"./login_message\student_ID.txt")
         main()
 
 
@@ -571,7 +678,6 @@ def jsession():
     name_elements = get_name(cookies)
     if name_elements:
         name = name_elements[0].strip()
-        # get_ip(name, jsessionid)
         if name in white_names:
             print("你好！ " + name + ' 登录成功！')
             cookies_save(jsessionid)
@@ -580,7 +686,6 @@ def jsession():
             print('登录失败！请检查登录信息后重新输入！')
             main()
     else:
-        # get_ip("登录失败", jsessionid)
         print('登录失败！请检查登录信息后重新输入！')
         main()
 
