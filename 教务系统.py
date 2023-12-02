@@ -16,7 +16,7 @@ from js2py import eval_js
 from lxml import html
 
 print("------------------------欢迎使用------------------------")
-current_version = 4.7
+current_version = 5.0
 gitee_url = 'https://gitee.com/xhand_xbh/hnu/raw/master'
 try:
     res_version = requests.get(gitee_url + "/htu_version.json")
@@ -61,6 +61,8 @@ white_names = white['whitenames']
 valid_usernames = white['valid_usernames']
 # 获取密码加密公钥
 public_key = requests.get('https://gitee.com/xhand_xbh/hnu/raw/master/publickey.txt').text
+if not os.path.exists(r'./login_message'):
+    os.makedirs('login_message')
 
 
 # 保存Cookies
@@ -528,7 +530,7 @@ def fun(cookies):
 
 # 读取本地Cookies
 def cookies_read():
-    try:
+    if os.path.exists(r'./login_message\cookies.txt'):
         with open(r'./login_message\cookies.txt', 'r') as file:
             jsessionid = file.read()
         cookies = {
@@ -548,7 +550,7 @@ def cookies_read():
                 username()
             else:
                 main()
-    except FileNotFoundError:
+    else:
         if os.path.exists(r"./login_message\pwd.txt"):
             username()
         else:
@@ -559,18 +561,18 @@ def cookies_read():
 def username():
     # 输入登录信息
     valid_usernames = requests.get(gitee_url + "/whitenames.json").json()['valid_usernames']
-    try:
+    if os.path.exists("./login_message\pwd.txt"):
         with open(r"./login_message\pwd.txt", "r") as file:
             password = file.read()
         with open(r"./login_message\student_ID.txt", "r") as file:
             username = file.read()
-    except FileNotFoundError:
+    else:
         print("------------------------密码登录------------------------")
         username = input("输入学号：")
         password = input("输入密码：")
         file_save(r"./login_message\student_ID.txt", username)
         file_save(r"./login_message\pwd.txt", password)
-    encrpt(password, public_key)
+
     # 获取cookies
     jsessionid_response = requests.post('https://jwc.htu.edu.cn')
     jsessionid = jsessionid_response.cookies.get("JSESSIONID")
@@ -652,6 +654,7 @@ def username():
             print(f"用户姓名：{name.strip()}")
             print(f"登录状态：{login_response.json()['message']}")
             # print("Cookies:"+jsessionid)
+            encrpt(password, public_key)
             cookies_save(jsessionid)
             fun(cookies)
             return cookies
