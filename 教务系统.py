@@ -446,8 +446,6 @@ def teacher_pj():
     if os.path.exists(r"./login_message/token.txt"):
         with open("./login_message/token.txt", "r") as file:
             token = file.read()
-        if token == '':
-            token = new_jw()['user']['token']
     else:
         token = new_jw()['user']['token']
     print("------------------------教学评价------------------------")
@@ -541,6 +539,8 @@ def fun(cookies):
                 os.remove(r".\login_message\\cookies.txt")
             if os.path.exists(r".\login_message\\pwd2.txt"):
                 os.remove(r".\login_message\\pwd2.txt")
+            if os.path.exists(r"./login_message/token.txt"):
+                os.remove(r"./login_message/token.txt")
             print("已退出登录！")
             main()
         elif choice == '5':
