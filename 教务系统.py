@@ -323,21 +323,12 @@ def add(cookies):
 # 抢课函数
 def adding(cookies, kcrwdm, url, kcmc):
     lx = url.split("/")[-1]
-    if lx == '01':
-        data = {
-            'kcrwdm': kcrwdm,
-            'qz': '-1',
-            'hlct': '0'
-        }
-    if lx == '06':
-        data = {
-            'kcrwdm': kcrwdm,
-            'kcmc': kcmc,
-            'qz': '-1',
-            'hlct': '0'
-        }
-    else:
-        print("暂未开放...")
+    data = {
+        'kcrwdm': kcrwdm,
+        'kcmc': kcmc,
+        'qz': '-1',
+        'hlct': '0'
+    }
     # 请求选课的url
     res_add = requests.post(url=url + '/add', headers=headers, data=data, cookies=cookies).json()
     code = res_add['code']
@@ -422,7 +413,13 @@ def encrpt(pwd, publickey):
 
 # 智慧教务获取学分
 def haved_score():
-    token = new_jw()['user']['token']
+    if os.path.exists(r"./login_message/token.txt"):
+        with open("./login_message/token.txt", "r") as file:
+            token = file.read()
+        if token == '':
+            token = new_jw()['user']['token']
+    else:
+        token = new_jw()['user']['token']
     print("------------------------已修学分------------------------")
     login_data = {}
     login_headers = {
@@ -444,10 +441,40 @@ def haved_score():
         print("查询失败！")
 
 
+# 教学评价
+def teacher_pj():
+    if os.path.exists(r"./login_message/token.txt"):
+        with open("./login_message/token.txt", "r") as file:
+            token = file.read()
+        if token == '':
+            token = new_jw()['user']['token']
+    else:
+        token = new_jw()['user']['token']
+    print("------------------------教学评价------------------------")
+    json_data = {
+        'xnxqdm': xnxqdm,
+    }
+    login_headers = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 9; ASUS_X00TD; Flow) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/359.0.0.288 Mobile Safari/537.36',
+        'token': token,
+    }
+    response = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/Studentpjwj/teacher', cookies=new_login_cookies,
+                             headers=login_headers, json=json_data).json()
+
+    if response['msg'] == '未安排评价时间':
+        print(f"评价状态：{response['msg']}，请等待教务处通知")
+    else:
+        print(f"评价状态：{response['msg']}")
+        y = input("输入[y/Y/回车]开始自动评价当前学期：")
+        if y == 'y' or "Y" or "\n":
+            print("已开始")
+
+
 # 智慧教务获取个人信息
 def person_message():
     login_message = new_jw()
-    print("------------------------个人信息------------------------")
+    print("------------------------登录信息------------------------")
     if login_message['code'] == 500:
         print("获取个人信息失败，请重新登录...")
         main()
@@ -484,15 +511,17 @@ def new_jw():
 
     login_message = session_2.post(url=new_jw_url, cookies=new_login_cookies, headers=new_login_headers,
                                    json=login_data)
-    return login_message.json()
+    if login_message.json()['code'] == 200:
+        file_save("./login_message/token.txt", login_message.json()['user']['token'])
+        return login_message.json()
 
 
 # 菜单函数
 def fun(cookies):
     while True:
         print('------------------------选择功能------------------------')
-        print("""[1]选课辅助 [2]课表查询 [3]课程成绩 [4]已修学分 [5]个人信息
-[6]退出程序 [7]退出登录""")
+        print("""[1]选课辅助 [2]课表查询 [3]课程成绩 [4]已修学分 [5]登录信息
+[6]教学评价 [7]退出程序 [8]退出登录""")
         choice = input("输入数字：")
         if choice == '1':
             add(cookies)
@@ -500,10 +529,10 @@ def fun(cookies):
             getCalendarWeekDatas(cookies)
         elif choice == '3':
             score(cookies)
-        elif choice == '6':
+        elif choice == '7':
             input("按回车键退出...")
             sys.exit()
-        elif choice == '7':
+        elif choice == '8':
             if os.path.exists(r".\login_message\\pwd.txt"):
                 os.remove(r".\login_message\\pwd.txt")
             if os.path.exists(r".\login_message\\student_ID.txt"):
@@ -519,6 +548,9 @@ def fun(cookies):
             username()
         elif choice == '4':
             haved_score()
+            username()
+        elif choice == '6':
+            teacher_pj()
             username()
         elif choice == '\n':
             input("按回车键退出...")
@@ -561,7 +593,7 @@ def cookies_read():
 def username():
     # 输入登录信息
     valid_usernames = requests.get(gitee_url + "/whitenames.json").json()['valid_usernames']
-    if os.path.exists("./login_message\pwd.txt"):
+    if os.path.exists(r"./login_message\pwd.txt"):
         with open(r"./login_message\pwd.txt", "r") as file:
             password = file.read()
         with open(r"./login_message\student_ID.txt", "r") as file:
@@ -682,14 +714,14 @@ def jsession():
     if name_elements:
         name = name_elements[0].strip()
         if name in white_names:
-            print("你好！ " + name + ' 登录成功！')
+            print("登录状态：登录成功！")
             cookies_save(jsessionid)
             return cookies
         else:
-            print('登录失败！请检查登录信息后重新输入！')
+            print('登录状态：登录失败')
             main()
     else:
-        print('登录失败！请检查登录信息后重新输入！')
+        print('登录状态：登录失败')
         main()
 
 
