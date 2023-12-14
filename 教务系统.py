@@ -73,7 +73,7 @@ if not os.path.exists("./login_message/login.json"):
         "cookies": "",
         "token": ""
     }
-    with open(r"./login_message/login.json", "w") as file:
+    with open("./login_message/login.json", "w") as file:
         file.write(json.dumps(login_message))
     file.close()
 with open(r"./login_message/login.json", "r") as file:
