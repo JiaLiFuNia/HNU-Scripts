@@ -16,7 +16,7 @@ from js2py import eval_js
 from lxml import html
 
 print("------------------------欢迎使用------------------------")
-current_version = 5.0
+current_version = 5.3
 gitee_url = 'https://gitee.com/xhand_xbh/hnu/raw/master'
 try:
     res_version = requests.get(gitee_url + "/htu_version.json")
@@ -33,6 +33,7 @@ if current_version < latest_version:
 else:
     print("版本状态：当前为最新版本")
 print("使用文档：https://flowus.cn/share/0854d558-65c2-414e-bc88-832c7c62c070")
+print("开源地址：")
 # 伪装浏览器
 headers = {
     'Referer': 'https://jwc.htu.edu.cn/new/desktop',
@@ -64,6 +65,23 @@ public_key = requests.get('https://gitee.com/xhand_xbh/hnu/raw/master/publickey.
 if not os.path.exists(r'./login_message'):
     os.makedirs('login_message')
 
+if not os.path.exists("./login_message/login.json"):
+    login_message = {
+        "id": "",
+        "pwd": "",
+        "RSA_pwd": "",
+        "cookies": "",
+        "token": ""
+    }
+    with open(r"./login_message/login.json", "w") as file:
+        file.write(json.dumps(login_message))
+    file.close()
+with open(r"./login_message/login.json", "r") as file:
+    a = file.read()
+if a != '':
+    LOGIN = json.loads(a)
+file.close()
+
 
 # 保存Cookies
 def cookies_save(text):
@@ -75,6 +93,14 @@ def cookies_save(text):
 def file_save(path, text):
     with open(path, "w") as file:
         file.write(text)
+
+
+# 保存文件
+def renew_LOGIN(key, value):
+    LOGIN[key] = value
+    with open(r"./login_message/login.json", "w") as f:
+        f.write(json.dumps(LOGIN))
+    f.close()
 
 
 # 如果登录成功获取用户的姓名
@@ -407,17 +433,14 @@ def encrpt(pwd, publickey):
     rsakey = RSA.importKey(publickey)
     cipher = Cipher_pksc1_v1_5.new(rsakey)
     cipher_text = base64.b64encode(cipher.encrypt(pwd.encode()))
-    file_save(r".\login_message/pwd2.txt", cipher_text.decode())
+    renew_LOGIN("RSA_pwd", cipher_text.decode())
     return cipher_text.decode()
 
 
 # 智慧教务获取学分
 def haved_score():
-    if os.path.exists(r"./login_message/token.txt"):
-        with open("./login_message/token.txt", "r") as file:
-            token = file.read()
-        if token == '':
-            token = new_jw()['user']['token']
+    if LOGIN['token'] != '':
+        token = LOGIN['token']
     else:
         token = new_jw()['user']['token']
     print("------------------------已修学分------------------------")
@@ -443,9 +466,8 @@ def haved_score():
 
 # 教学评价
 def teacher_pj():
-    if os.path.exists(r"./login_message/token.txt"):
-        with open("./login_message/token.txt", "r") as file:
-            token = file.read()
+    if LOGIN['token'] != '':
+        token = LOGIN['token']
     else:
         token = new_jw()['user']['token']
     print("------------------------教学评价------------------------")
@@ -488,14 +510,12 @@ def person_message():
 
 # 智慧教务登录
 def new_jw():
-    if os.path.exists(r".\login_message\\student_ID.txt"):
-        with open(r".\login_message\\student_ID.txt") as fid:
-            xh = fid.read()
+    if LOGIN['id'] != '':
+        xh = LOGIN['id']
     else:
         xh = "0000000000"
-    if os.path.exists(r".\login_message\pwd2.txt"):
-        with open(r".\login_message\\pwd2.txt", "r") as file:
-            key_password = file.read()
+    if LOGIN['RSA_pwd']:
+        key_password = LOGIN['RSA_pwd']
     else:
         key_password = "0000000000"
     login_data = {
@@ -510,7 +530,7 @@ def new_jw():
     login_message = session_2.post(url=new_jw_url, cookies=new_login_cookies, headers=new_login_headers,
                                    json=login_data)
     if login_message.json()['code'] == 200:
-        file_save("./login_message/token.txt", login_message.json()['user']['token'])
+        renew_LOGIN("token", login_message.json()['user']['token'])
         return login_message.json()
 
 
@@ -531,16 +551,11 @@ def fun(cookies):
             input("按回车键退出...")
             sys.exit()
         elif choice == '8':
-            if os.path.exists(r".\login_message\\pwd.txt"):
-                os.remove(r".\login_message\\pwd.txt")
-            if os.path.exists(r".\login_message\\student_ID.txt"):
-                os.remove(r".\login_message\\student_ID.txt")
-            if os.path.exists(r".\login_message\\cookies.txt"):
-                os.remove(r".\login_message\\cookies.txt")
-            if os.path.exists(r".\login_message\\pwd2.txt"):
-                os.remove(r".\login_message\\pwd2.txt")
-            if os.path.exists(r"./login_message/token.txt"):
-                os.remove(r"./login_message/token.txt")
+            renew_LOGIN('id', '')
+            renew_LOGIN('pwd', '')
+            renew_LOGIN('cookies', '')
+            renew_LOGIN('RSA_pwd', '')
+            renew_LOGIN('token', '')
             print("已退出登录！")
             main()
         elif choice == '5':
@@ -562,9 +577,8 @@ def fun(cookies):
 
 # 读取本地Cookies
 def cookies_read():
-    if os.path.exists(r'./login_message\cookies.txt'):
-        with open(r'./login_message\cookies.txt', 'r') as file:
-            jsessionid = file.read()
+    if LOGIN['cookies'] != '':
+        jsessionid = LOGIN['cookies']
         cookies = {
             "JSESSIONID": jsessionid
         }
@@ -593,17 +607,15 @@ def cookies_read():
 def username():
     # 输入登录信息
     valid_usernames = requests.get(gitee_url + "/whitenames.json").json()['valid_usernames']
-    if os.path.exists(r"./login_message\pwd.txt"):
-        with open(r"./login_message\pwd.txt", "r") as file:
-            password = file.read()
-        with open(r"./login_message\student_ID.txt", "r") as file:
-            username = file.read()
+    if LOGIN['id'] != '' and LOGIN['pwd'] != '':
+        password = LOGIN['pwd']
+        username = LOGIN['id']
     else:
         print("------------------------密码登录------------------------")
         username = input("输入学号：")
         password = input("输入密码：")
-        file_save(r"./login_message\student_ID.txt", username)
-        file_save(r"./login_message\pwd.txt", password)
+        renew_LOGIN('id', username)
+        renew_LOGIN('pwd', password)
 
     # 获取cookies
     jsessionid_response = requests.post('https://jwc.htu.edu.cn')
@@ -687,19 +699,19 @@ def username():
             print(f"登录状态：{login_response.json()['message']}")
             # print("Cookies:"+jsessionid)
             encrpt(password, public_key)
-            cookies_save(jsessionid)
+            renew_LOGIN('cookies', jsessionid)
             fun(cookies)
             return cookies
         else:
             print("登录失败！请检查学号后重新输入")
-            os.remove(r"./login_message\pwd.txt")
-            os.remove(r"./login_message\student_ID.txt")
+            renew_LOGIN('id', '')
+            renew_LOGIN('pwd', '')
             main()
     else:
         print('登录失败！')
         print(login_response.json()['message'] + "，请检查后重新输入！")
-        os.remove(r"./login_message\pwd.txt")
-        os.remove(r"./login_message\student_ID.txt")
+        renew_LOGIN('id', '')
+        renew_LOGIN('pwd', '')
         main()
 
 
@@ -715,7 +727,7 @@ def jsession():
         name = name_elements[0].strip()
         if name in white_names:
             print("登录状态：登录成功！")
-            cookies_save(jsessionid)
+            renew_LOGIN('cookies', jsessionid)
             return cookies
         else:
             print('登录状态：登录失败')
@@ -729,13 +741,16 @@ def jsession():
 def main():
     print("------------------------登录系统------------------------")
     print("请选择登录方式：[1]密码登录   [2]Cookies登录   [3]退出登录")
-    login_way = int(input("输入数字："))
-    if login_way == 1:
+    login_way = input("输入数字：")
+    if login_way == '1':
         cookies = username()
         fun(cookies)
-    elif login_way == 2:
+    elif login_way == '2':
         cookies = jsession()
         fun(cookies)
+    elif login_way == '\n':
+        input("按回车键退出...")
+        sys.exit()
     else:
         input("按回车键退出...")
         sys.exit()
