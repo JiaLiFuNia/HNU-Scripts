@@ -16,7 +16,7 @@ from js2py import eval_js
 from lxml import html
 
 print("------------------------欢迎使用------------------------")
-current_version = 5.3
+current_version = 5.6
 gitee_url = 'https://gitee.com/xhand_xbh/hnu/raw/master'
 try:
     res_version = requests.get(gitee_url + "/htu_version.json")
@@ -56,6 +56,7 @@ print(f"在线人数：{getOnlineMembers_response['data']}")
 # 获取当前学期和需要保留的键
 xq_keys = requests.get(gitee_url + '/xq_keys.json').json()
 xnxqdm = xq_keys['xnxqdm']
+xnxqdm_xk = xq_keys['xnxqdm_xk']
 # 获取白名单
 white = requests.get(gitee_url + '/whitenames.json').json()
 white_names = white['whitenames']
@@ -115,10 +116,10 @@ def get_name(cookies):
 # 获取课程的上课时间函数
 def add_time(kcrwdm, cookies):
     res = requests.get('https://jwc.htu.edu.cn/new/student/xsxk/jxrl',
-                       params={'xnxqdm': xnxqdm, 'kcrwdm': kcrwdm, '_': int(time.time() * 1000)},
+                       params={'xnxqdm': xnxqdm_xk, 'kcrwdm': kcrwdm, '_': int(time.time() * 1000)},
                        headers=headers, cookies=cookies).text  # 请求上课时间的url
     start_index = res.find("data: [")
-    end_index = res.find("]", start_index) + 1
+    end_index = res.find("],", start_index) + 1
 
     if start_index != -1 and end_index != -1:
         data_json = res[start_index + len("data: "):end_index]
@@ -162,6 +163,19 @@ def get_add(cookies):
 # 02 体育专选
 # 01 博约专选
 # 07 文学专选
+
+
+def save_details(save_keys_zh, kcmls):
+    # 保存文件
+    f = open('课程信息目录.csv', 'w')
+    csv_write = csv.writer(f)
+    csv_write.writerow(save_keys_zh)
+    for kcml in kcmls:
+        csv_write.writerow(kcml.values())
+    f.close()
+    os.startfile("课程信息目录.csv")
+    print("已完成")
+    print('你可以查看"课程信息目录.csv"辅助选课')
 
 
 # 筛选课程函数
@@ -216,14 +230,13 @@ def add(cookies):
                 for i in rows:
                     last = str(int(i['pkrs']) - int(i['jxbrs']))
                     print(
-                        f"[{index}] 课程名称：{i['kcmc']} 课程代码：{i['kcrwdm']} 课程板块：{i['kcflmc']} 学分：{i['xf']} 还有{last}个名额")
+                        f"[{index}] 课程名称：{i['kcmc']} 课程代码：{i['kcrwdm']} 授课教师：{i['teaxm']} 课程板块：{i['kcflmc']} 学分：{i['xf']} 还有{last}个名额")
                     index = index + 1
                     kcrwdms.append(i['kcrwdm'])
                     kcmcs.append(i['kcmc'])
                 print(f"[{index}] 退出")
                 kcrwdms_indexs = input("输入序号(多个序号以空格隔开)：").split(" ")
                 kcrwdms_indexs = [int(kcrwdms_indexs) for kcrwdms_indexs in kcrwdms_indexs]
-                print(kcrwdms_indexs)
                 for kcrwdms_index in kcrwdms_indexs:
                     if len(rows) >= kcrwdms_index >= 1:
                         # 调用选课函数开始选课
@@ -234,36 +247,15 @@ def add(cookies):
                             fun(cookies)
                         else:
                             print("输入的序号无效，请重新输入！")
-                    # 循环输出符合条件的课程基本信息
-                    '''kcrwdms = []
-                    index = 1
-                    for i in rows:
-                        last = str(int(i['pkrs']) - int(i['jxbrs']))
-                        if last != '0':
-                            if i['kcflmc'] == kcflmc:
-                                # 通过调用fore_add课程时间的函数，请求上课的具体时间
-                                data_list = add_time(i['kcrwdm'], cookies)
-                                if zc_input == data_list[0]['zc'] and jcdm2_input == data_list[0]['jcdm2']:
-                                    print(
-                                        str(index) + " 课程名称：" + i['kcmc'] + " 课程代码：" + str(i['kcrwdm']) + " 课程板块：" +
-                                        i[
-                                            'kcflmc'] + " 学分：" + str(
-                                            i['xf']) + " 还有" + last + "个名额" + " 该课程共有" + str(
-                                            data_list[-1]['kxh']) + "节课，" + '第' + str(data_list[0]['zc']) + '-' + str(
-                                            data_list[-1]['zc']) + '周的' + '星期' + str(data_list[0]['xq']) + '的第' + str(
-                                            data_list[0]['jccdm2']) + '节要上课')
-                                    i['kcrwdm'].append(kcrwdms)
-                                else:
-                                    print("当前时间段没有目标类型的课程！")
-                                add(cookies)'''
             # 定时课程
             elif add_way == 2:
                 print("------------------------定时选课------------------------")
+                print("请查看“课程信息目录.csv”辅助选课")
+                os.startfile("课程信息目录.csv")
                 kcrwdms = input("输入目标选课的课程代码：").split(" ")
                 kcmcs = input("输入目标选课的课程名称：").split(" ")
                 print(f"选课时间：{start_time}")
                 kcrwdms = [int(kcrwdms) for kcrwdms in kcrwdms]
-                kcmcs = [int(kcmcs) for kcmcs in kcmcs]
                 for i in range(len(kcrwdms)):
                     # 获取预定的时间
                     time_object = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
@@ -279,7 +271,7 @@ def add(cookies):
                         desired_time = current_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
                         time_to_wait = (desired_time - current_time).total_seconds()
                         print("正在等待达到选课时间...")
-                        time.sleep(time_to_wait)
+                        time.sleep(time_to_wait+6)
                         # 调用adding选课函数开始选课
                         adding(cookies, kcrwdms[i], url, kcmcs[i])
             # 已选课程
@@ -297,45 +289,42 @@ def add(cookies):
             elif add_way == 3:
                 print("------------------------课程信息------------------------")
                 print("正在生成信息文件，请稍后...")
-                # 课程代码列表
-                kcdm = []
-                # 遍历所有课程 获取课程代码
-                for row in rows:
-                    kcdm.append(row['kcrwdm'])
-                index = 1
-                # 每一个课程的所有键
-                sum_keys = []
-                for key in add_time(kcdm[0], cookies)[-1].keys():
-                    sum_keys.append(key)
-                # 需要保留的键
-                save_keys = xq_keys['save_keys']
-                # 修改键名称
-                save_keys_zh = xq_keys['save_keys_zh']
-                # 获取需要删除的键值
-                delete_keys = list(set(sum_keys) - set(save_keys))
-                # 格式化后的课程信息
-                kcmls = []
-                if len(add_time(kcdm[0], cookies)) != 0:
-                    # 遍历每一个课程代码
-                    for i in kcdm:
-                        # 获取每一个课程代码的具体信息
-                        timec = add_time(i, cookies)[-1]
-                        # 删除键
-                        for j in delete_keys:
-                            timec.pop(j, '没有该键')
-                            kcmls.append(timec)
-                        print(f"[{index}] {timec}")
-                        index = index + 1
-                    # 保存文件
-                    f = open('课程信息目录.csv', 'w')
-                    csv_write = csv.writer(f)
-                    csv_write.writerow(save_keys_zh)
-                    for kcml in kcmls:
-                        csv_write.writerow(kcml.values())
-                    f.close()
-                    os.startfile("课程信息目录.csv")
-                    print("已完成")
-                    print('你可以查看"课程信息目录.csv"辅助选课')
+                if len(rows) != 0:
+                    # 课程代码列表
+                    kcdm = []
+                    # 遍历所有课程 获取课程代码
+                    for row in rows:
+                        kcdm.append(row['kcrwdm'])
+                    index = 1
+                    # 每一个课程的所有键
+                    sum_keys = []
+                    if len(add_time(kcdm[0], cookies)) != 0:
+                        for key in add_time(kcdm[0], cookies)[-1].keys():
+                            sum_keys.append(key)
+                        # 需要保留的键
+                        save_keys = xq_keys['save_keys']
+                        # 修改键名称
+                        save_keys_zh = xq_keys['save_keys_zh']
+                        # 获取需要删除的键值
+                        delete_keys = list(set(sum_keys) - set(save_keys))
+                        # 格式化后的课程信息
+                        kcmls = []
+                        # 遍历每一个课程代码
+                        for i in kcdm:
+                            # 获取每一个课程代码的具体信息
+                            timecs = add_time(i, cookies)
+                            # 删除键
+                            for timec in timecs:
+                                for j in delete_keys:
+                                    timec.pop(j, '没有该键')
+                                kcmls.append(timec)
+                                print(f"[{index}] {timec}")
+                            index = index + 1
+                        save_details(kcmls[0].keys(), kcmls)
+                    else:
+                        save_keys_zh = rows[0].keys()
+                        kcmls = rows
+                        save_details(save_keys_zh, kcmls)
                 else:
                     print("课程信息为空，生成失败")
                 fun(cookies)
