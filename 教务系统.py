@@ -16,17 +16,17 @@ from js2py import eval_js
 from lxml import html
 
 print("------------------------欢迎使用------------------------")
-current_version = 6.0
+current_version = '6.0.1'
 gitee_url = 'https://gitee.com/xhand_xbh/hnu/raw/master'
 try:
     res_version = requests.get(gitee_url + "/htu_version.json")
-    latest_version = res_version.json()['version']
+    latest_version = res_version.json()['version_detail']
 except Exception as e:
     print("无网络链接!请连接网络后，重试！")
     input("按回车键退出...")
     sys.exit()
 
-if current_version < latest_version:
+if current_version != latest_version:
     print(f"当前版本：{current_version}")
     print(f"最新版本：{latest_version}")
     print(f"更新地址：https://www.123pan.com/s/uyHuVv-5LyVH.html")
@@ -84,7 +84,6 @@ with open(r"./login_message/login.json", "r") as file:
 if a != '':
     LOGIN = json.loads(a)
 file.close()
-
 
 # 保存Cookies
 def cookies_save(text):
@@ -324,7 +323,8 @@ def way_5(url, cookies):
     searchKey = int(input("输入搜索分类序号："))
     searchValue = input("模糊搜索：")
     while True:
-        data = {'searchKey': searchKeys[searchKey - 1], 'searchValue': searchValue, 'page': '1', 'rows': '400', 'sort': 'kcrwdm', 'order': 'asc', }
+        data = {'searchKey': searchKeys[searchKey - 1], 'searchValue': searchValue, 'page': '1', 'rows': '400',
+                'sort': 'kcrwdm', 'order': 'asc', }
         search_response = requests.post(url + '/kxkc', data=data, cookies=cookies,
                                         headers=headers).json()
         rows = search_response['rows']
@@ -421,7 +421,6 @@ def adding(cookies, kcrwdm, url, kcmc, ifwhile):
 
 # 获取课程表函数
 def getCalendarWeekDatas(cookies):
-    get_name(cookies)
     print("------------------------课表查询------------------------")
     data = {
         'xnxqdm': xnxqdm,
@@ -456,7 +455,6 @@ def getCalendarWeekDatas(cookies):
 
 # 获取考试成绩函数
 def score(cookies):
-    get_name(cookies)
     print("------------------------课程成绩------------------------")
     term_xnxqdm = int(input("请输入要查询的学期（示例：大一第二学期就输入 202202）："))
     data = {
@@ -489,12 +487,28 @@ def encrpt(pwd, publickey):
     return cipher_text.decode()
 
 
-# 智慧教务获取学分
-def haved_score():
+# 判断新版教务是否处于登录状态
+def new_if_logined():
     if LOGIN['token'] != '':
         token = LOGIN['token']
+        login_headers = {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 9; ASUS_X00TD; Flow) AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/359.0.0.288 Mobile Safari/537.36',
+            'token': token,
+        }
+        json_data = {}
+        response = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/getNotice', cookies=new_login_cookies, headers=login_headers,
+                                 json=json_data)
+        if response.json()['code'] == 401:
+            token = new_jw()['user']['token']
     else:
         token = new_jw()['user']['token']
+    return token
+
+
+# 智慧教务获取学分
+def haved_score():
+    token = new_if_logined()
     print("------------------------已修学分------------------------")
     login_data = {}
     login_headers = {
@@ -507,7 +521,9 @@ def haved_score():
                                    cookies=new_login_cookies,
                                    headers=login_headers,
                                    json=login_data)
-    if score_message.json()['code'] == 200:
+    if score_message.json()['code'] == 401:
+        new_jw()
+    elif score_message.json()['code'] == 200:
         index = 1
         for i in score_message.json()['list']:
             print(f"[{index}] {i['kcdlmc']} {i['xf']}分")
@@ -518,10 +534,7 @@ def haved_score():
 
 # 教学评价
 def teacher_pj():
-    if LOGIN['token'] != '':
-        token = LOGIN['token']
-    else:
-        token = new_jw()['user']['token']
+    token = new_if_logined()
     print("------------------------教学评价------------------------")
     json_data = {
         'xnxqdm': xnxqdm_pj,
@@ -532,10 +545,12 @@ def teacher_pj():
         'token': token,
     }
     all_courses = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/Studentpjwj/teacher', cookies=new_login_cookies,
-                             headers=login_headers, json=json_data).json()
+                                headers=login_headers, json=json_data).json()
     # 未安排评价时间 200
     # 请登录 401
     #
+    if all_courses['code'] == 401:
+        new_jw()
     if all_courses['code'] == 200:
         print(f"评价时间：{all_courses['msg']}")
         y = input("输入[y/Y/回车]确认开始自动评价当前学期：")
@@ -559,8 +574,9 @@ def teacher_pj():
                         'dgksdm': dgksdms[i],
                         'teadm': teadm[i],
                     }
-                    teachers_detail = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/Studentpjwj/pjTea', cookies=new_login_cookies,
-                                             headers=login_headers, json=json_data)
+                    teachers_detail = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/Studentpjwj/pjTea',
+                                                    cookies=new_login_cookies,
+                                                    headers=login_headers, json=json_data)
                     json_data_detail = teachers_detail.json()['skInfo']
                     if json_data_detail['jxhjmc'] == '理论':
                         json_data = {
@@ -844,11 +860,13 @@ def teacher_pj():
                             'dgksdm': json_data_detail['dgksdm'],
                             'jxhjdm': json_data_detail['jxhjdm'],
                         }
-                    pj = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/Studentpjwj/saveTeaPj', cookies=new_login_cookies,
-                                             headers=login_headers, json=json_data)
+                    pj = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/Studentpjwj/saveTeaPj',
+                                       cookies=new_login_cookies,
+                                       headers=login_headers, json=json_data)
                     print(pj.json())
                     if pj.json()['msg'] == 'app_retrun_success_saveTeaPj':
-                        print(f"{json_data_detail['teaxm']} {json_data_detail['jxhjmc']} {json_data_detail['kcmc']} 评价成功")
+                        print(
+                            f"{json_data_detail['teaxm']} {json_data_detail['jxhjmc']} {json_data_detail['kcmc']} 评价成功")
                     time.sleep(5)
                 print("评价状态：评价已完成")
             else:
@@ -861,7 +879,7 @@ def teacher_pj():
 def person_message():
     login_message = new_jw()
     print("------------------------登录信息------------------------")
-    if login_message['code'] == 500:
+    if login_message['code'] != 200:
         print("获取个人信息失败，请重新登录...")
         main()
     elif login_message['code'] == 200:
@@ -926,13 +944,13 @@ def fun(cookies):
             main()
         elif choice == '5':
             person_message()
-            username()
+            username(0)
         elif choice == '4':
             haved_score()
-            username()
+            username(0)
         elif choice == '6':
             teacher_pj()
-            username()
+            username(0)
         elif choice == '\n':
             input("按回车键退出...")
             sys.exit()
@@ -959,18 +977,18 @@ def cookies_read():
                 main()
         else:
             if os.path.exists(r"./login_message\pwd.txt"):
-                username()
+                username(1)
             else:
                 main()
     else:
         if os.path.exists(r"./login_message\pwd.txt"):
-            username()
+            username(1)
         else:
             main()
 
 
 # 密码登录
-def username():
+def username(ifname):
     # 输入登录信息
     valid_usernames = requests.get(gitee_url + "/whitenames.json").json()['valid_usernames']
     if LOGIN['id'] != '' and LOGIN['pwd'] != '':
@@ -1052,17 +1070,16 @@ def username():
         'pwd': password_key,
         'verifycode': verifycode
     }
-    # 新建会话，保持登录状态
-    session = requests.Session()
     # 发送登录请求
     login_url = 'https://jwc.htu.edu.cn/new/login'  # 替换为实际的登录页面URL
-    login_response = session.post(url=login_url, data=login_data, headers=login_headers, cookies=cookies)
+    login_response = requests.post(url=login_url, data=login_data, headers=login_headers, cookies=cookies)
     name_elements = get_name(cookies)
     if name_elements:
         name = name_elements[0].strip()
         if name in white_names:
-            print(f"用户姓名：{name.strip()}")
-            print(f"登录状态：{login_response.json()['message']}")
+            if ifname == 1:
+                print(f"用户姓名：{name.strip()}")
+                print(f"登录状态：{login_response.json()['message']}")
             # print("Cookies:"+jsessionid)
             encrpt(password, public_key)
             renew_LOGIN('cookies', jsessionid)
@@ -1109,7 +1126,7 @@ def main():
     print("[1]密码登录   [2]Cookies登录   [3]清除信息   [4]退出登录")
     login_way = input("选择登录方式：")
     if login_way == '1':
-        cookies = username()
+        cookies = username(1)
         fun(cookies)
     elif login_way == '2':
         cookies = jsession()
@@ -1120,7 +1137,7 @@ def main():
         renew_LOGIN('cookies', '')
         renew_LOGIN('RSA_pwd', '')
         renew_LOGIN('token', '')
-        cookies = username()
+        cookies = username(1)
         fun(cookies)
     elif login_way == '\n':
         input("按回车键退出...")
