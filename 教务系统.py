@@ -104,7 +104,10 @@ def renew_LOGIN(key, value):
 # 如果登录成功获取用户的姓名
 def get_name(cookies):
     logined_url = 'https://jwc.htu.edu.cn/new/welcome.page'
-    logined_response = requests.get(url=logined_url, cookies=cookies).text
+    try:
+        logined_response = requests.get(url=logined_url, cookies=cookies).text
+    except:
+        print("用户姓名获取请求失败，错误码：03")
     root = html.fromstring(logined_response)
     name_elements = root.xpath('(//div[@class="top"])[1]/text()')
     return name_elements
@@ -802,7 +805,10 @@ def username(ifname):
         verifycode = 'abcd'
 
     # 密码加密使用了aes.js文件
-    aes_response = requests.get(gitee_url + '/aes.js')
+    try:
+        aes_response = requests.get(gitee_url + '/aes.js')
+    except:
+        print("aes.js请求失败，错误码：02")
     with open(r'./login_message\aes.js', 'wb') as js_file:
         js_file.write(aes_response.content)
     # 读取 JavaScript 代码
@@ -837,7 +843,10 @@ def username(ifname):
     }
     # 发送登录请求
     login_url = 'https://jwc.htu.edu.cn/new/login'  # 替换为实际的登录页面URL
-    login_response = requests.post(url=login_url, data=login_data, headers=login_headers, cookies=cookies)
+    try:
+        login_response = requests.post(url=login_url, data=login_data, headers=login_headers, cookies=cookies)
+    except:
+        print("账号密码登录请求失败，错误码：01")
     name_elements = get_name(cookies)
     if name_elements:
         name = name_elements[0].strip()
