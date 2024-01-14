@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from gne import GeneralNewsExtractor
 import re
+from trafilatura import fetch_url, extract
 
 m = 1
 
@@ -21,10 +22,12 @@ def init_text(text):
 def get_details(url):
     global m
     if url.split('/')[2] != 'web.htu.edu.cn':
-        res = requests.get(url)
+        """res = requests.get(url)
         res.encoding = "utf-8"
         extractor = GeneralNewsExtractor()
-        detail = extractor.extract(res.text, with_body_html=True)
+        detail = extractor.extract(res.text, with_body_html=True)"""
+        downloaded = fetch_url(url)
+        detail = json.loads(extract(downloaded, output_format="json"))
         detail_list = {
             "code": 200,
             "message": "success",
@@ -36,8 +39,9 @@ def get_details(url):
             }
         }
         detail_list['data']['title'] = detail['title']
-        detail_list['data']['time'] = detail['publish_time']
-        detail_list['data']['content'] = init_text(detail['content'])
+        detail_list['data']['time'] = detail['date']
+        detail_list['data']['content'] = detail['raw_text']
+        # detail_list['data']['content'] = init_text(detail['content'])
         return detail_list
 
 

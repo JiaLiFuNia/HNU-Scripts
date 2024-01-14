@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 
 import requests
+import unicodedata
 from Crypto.Cipher import PKCS1_v1_5 as Cipher_pksc1_v1_5
 from Crypto.PublicKey import RSA
 from bs4 import BeautifulSoup
@@ -16,7 +17,7 @@ from js2py import eval_js
 from lxml import html
 
 print("------------------------欢迎使用------------------------")
-current_version = '6.0.1'
+current_version = '6.1.4'
 gitee_url = 'https://gitee.com/xhand_xbh/hnu/raw/master'
 try:
     res_version = requests.get(gitee_url + "/htu_version.json")
@@ -54,7 +55,7 @@ print(f"在线人数：{getOnlineMembers_response['data']}")"""
 
 # 获取当前学期和需要保留的键
 xq_keys = requests.get(gitee_url + '/xq_keys.json').json()
-# 课程表用
+# 课程表 成绩用
 xnxqdm = xq_keys['xnxqdm']
 # 选课用
 xnxqdm_xk = xq_keys['xnxqdm_xk']
@@ -85,16 +86,11 @@ if a != '':
     LOGIN = json.loads(a)
 file.close()
 
-# 保存Cookies
-def cookies_save(text):
-    with open(r"./login_message/cookies.txt", 'w') as file:
-        file.write(text)
-
 
 # 保存账号密码
 def file_save(path, text):
-    with open(path, "w") as file:
-        file.write(text)
+    with open(path, "w") as f:
+        f.write(text)
 
 
 # 保存文件
@@ -136,26 +132,36 @@ def get_add(cookies):
     urls2 = soup.select('div.layui-container div#bb2')
     titles2 = soup.select('div.layui-container div#bb2 div.content div.text span.title')
     description2 = soup.select('div.layui-container div#bb2 div.content div.text div.description')
+
     urls1 = soup.select('div.layui-container div#bb1')
     titles1 = soup.select('div.layui-container div#bb1 div.content div.text span.title')
     description1 = soup.select('div.layui-container div#bb1 div.content div.text div.description')
     urls = urls1 + urls2
     titles = titles1 + titles2
     description = description1 + description2
+    able_select = 0
     if len(titles) != 0:
         for i in range(len(titles)):
-            print(f"课程类型:[{i + 1}]{titles[i].get_text()}")
-            print(f"选课信息:{re.split('>|<', str(description[i]))[2]}--{re.split('>|<', str(description[i]))[4]}")
-            print("----")
-        count = int(input("请输入目标选课类型序号："))
-        if len(urls) >= count >= 1:
-            count = count
+            description_2 = re.sub(r"(>|<|h|r|b|\t|\r|\n)", '', urls[i].get('lay-tips'))
+            print(f"课程类型：[{i + 1}]{titles[i].get_text()}")
+            print(f"选课信息：{re.split('>|<', str(description[i]))[2]}--{re.split('>|<', str(description[i]))[4]}")
+            print(f"选课学期：{description_2[5:16]}")
+            print(f"选课状态：{description_2[16:]}")
+            if re.split('>|<', str(description[i]))[2][0] == '不':
+                able_select = able_select + 1
+            print("--------")
+        if able_select != 0:
+            return "", ""
         else:
-            count = 1
-        print(f"你选择了{titles[count - 1].get_text()}")
-        url = "https://jwc.htu.edu.cn" + urls[count - 1].get("data-href")
-        start_time = re.split('>|<', str(description[count - 1]))[2]
-        return url, start_time
+            count = int(input("请输入目标选课类型序号："))
+            if len(urls) >= count >= 1:
+                count = count
+            else:
+                count = 1
+            print(f"你选择了{titles[count - 1].get_text()}")
+            url = "https://jwc.htu.edu.cn" + urls[count - 1].get("data-href")
+            start_time = re.split('>|<', str(description[count - 1]))[2]
+            return url, start_time
     else:
         return "", ""
 
@@ -197,7 +203,7 @@ def get_rows(url, cookies):
 
 # 直接选课
 def way_1(rows, url, cookies):
-    print('-----------------------直接选课-----------------------')
+    print('------------------------直接选课------------------------')
     index = 1
     kcrwdms = []
     kcmcs = []
@@ -318,11 +324,12 @@ def way_4(rows, cookies):
 # 搜索课程
 def way_5(url, cookies):
     print("------------------------搜索课程------------------------")
-    searchKeys = ['kcmc', 'kcflmc', 'jxbmc']
-    print("[1]课程名称  [2]课程分类  [3]教学班名称")
+    searchKeys = ['kcmc', 'kcflmc', 'jxbmc', 'teaxm']
+    print("[1]课程名称  [2]课程分类  [3]教学班名称  [4]教师名称")
     searchKey = int(input("输入搜索分类序号："))
     searchValue = input("模糊搜索：")
-    while True:
+    true = 1
+    while true == 1:
         data = {'searchKey': searchKeys[searchKey - 1], 'searchValue': searchValue, 'page': '1', 'rows': '400',
                 'sort': 'kcrwdm', 'order': 'asc', }
         search_response = requests.post(url + '/kxkc', data=data, cookies=cookies,
@@ -330,10 +337,11 @@ def way_5(url, cookies):
         rows = search_response['rows']
         if len(rows) != 0:
             for i in rows:
-                print(f"{i['kcmc']}")
+                print(f"{i['teaxm']} {i['kcmc']} {i['kcflmc']} {i['jxbmc']}")
                 adding(cookies, i['kcrwdm'], url, i['kcmc'], 0)
         else:
             print("当前搜索目标没有课程")
+            true = 0
 
 
 # 暴力选课
@@ -450,13 +458,30 @@ def getCalendarWeekDatas(cookies):
             weekdays = [int(weekday) for weekday in weekdays]
             print(
                 f"课程名称：{getCalendarWeekData['kcmc']}  授课教师：{getCalendarWeekData['teaxms']} 上课地点：{getCalendarWeekData['jxcdmc']}  上课周数：{min(weekdays)}-{max(weekdays)}周")
-        print("-------------------------")
+        print("------------------------")
+
+
+def convert_to_fullwidth(input_str):
+    fullwidth_str = ''
+    for char in input_str:
+        if unicodedata.east_asian_width(char) in ('F', 'W'):
+            # If character is fullwidth, keep it as is
+            fullwidth_str += char
+        else:
+            # Convert halfwidth character to fullwidth
+            fullwidth_str += chr(ord(char) + 0xFEE0)
+    return fullwidth_str
 
 
 # 获取考试成绩函数
 def score(cookies):
     print("------------------------课程成绩------------------------")
-    term_xnxqdm = int(input("请输入要查询的学期（示例：大一第二学期就输入 202202）："))
+    print("大一第二学期就输入 202202，点击回车输出当前学期")
+    term_xnxqdm = input("请输入：")
+    if term_xnxqdm == "":
+        term_xnxqdm = xnxqdm_pj
+    else:
+        term_xnxqdm = int(term_xnxqdm)
     data = {
         'source': 'kccjlist',
         'xnxqdm': term_xnxqdm
@@ -469,10 +494,18 @@ def score(cookies):
         cjjd_index = 0
         for scores in score_response:
             cjjd_index = cjjd_index + 1
-            print("[{:<2}] 课程名称: {:<15}总成绩: {:<10}绩点: {:<5}".format(cjjd_index, scores['kcmc'], scores['zcj'],
-                                                                             scores['cjjd']))
+            scores['kcmc'] = str.replace(scores['kcmc'], "Ⅳ", '四')
+            scores['kcmc'] = str.replace(scores['kcmc'], "Ⅱ", '二')
+            scores['kcmc'] = str.replace(scores['kcmc'], "Ⅲ", '三')
+            scores['kcmc'] = str.replace(scores['kcmc'], "Ⅰ", '一')
+            scores['kcmc'] = str.replace(scores['kcmc'], "Ｉ", '一')
+            scores['kcmc'] = str.replace(scores['kcmc'], " ", '')
+            scores['kcmc'] = convert_to_fullwidth(scores['kcmc'])
+            print("[{:<2}] 课程名称: {:\u3000<10} 总成绩: {:.2f}  绩点: {:.2f}".format(cjjd_index, scores['kcmc'],
+                                                                                       float(scores['zcjfs']),
+                                                                                       float(scores['cjjd'])))
             cjjd_sum = cjjd_sum + scores['cjjd']
-        print(f'平均绩点为：{cjjd_sum / cjjd_index}')
+        print('平均绩点：{:.2f}'.format(cjjd_sum / cjjd_index))
     else:
         print("当前学期没有成绩")
 
@@ -497,7 +530,8 @@ def new_if_logined():
             'token': token,
         }
         json_data = {}
-        response = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/getNotice', cookies=new_login_cookies, headers=login_headers,
+        response = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/getNotice', cookies=new_login_cookies,
+                                 headers=login_headers,
                                  json=json_data)
         if response.json()['code'] == 401:
             token = new_jw()['user']['token']
@@ -525,9 +559,12 @@ def haved_score():
         new_jw()
     elif score_message.json()['code'] == 200:
         index = 1
+        sum_xf = 0
         for i in score_message.json()['list']:
             print(f"[{index}] {i['kcdlmc']} {i['xf']}分")
             index = index + 1
+            sum_xf = sum_xf + i['xf']
+        print(f"已修学分：{sum_xf}")
     else:
         print("查询失败！")
 
@@ -554,6 +591,8 @@ def teacher_pj():
     if all_courses['code'] == 200:
         print(f"评价时间：{all_courses['msg']}")
         y = input("输入[y/Y/回车]确认开始自动评价当前学期：")
+        json_data_1 = requests.get(gitee_url + '/pj_details_1.json')  # 理论课
+        json_data_2 = requests.get(gitee_url + '/pj_details_2.json')  # 实验课
         if y == 'y' or "Y" or "\n":
             print("已开始（每门课程评价后延迟5秒）")
             dgksdms = []
@@ -561,9 +600,10 @@ def teacher_pj():
             kcrwdms = []
             index = 0
             for i in all_courses['allPjxxList']:
+                i['kcmc'] = str.replace(i['kcmc'], " ", '')
                 if i['pjdm'] != '':
                     index = index + 1
-                    print(f"[{index}] {i['teaxm']} {i['kcmc']} 已评价")
+                    print("[{:<2}] {:\u3000<3} {:\u3000<12} 已评价".format(index, i['teaxm'], i['kcmc']))
                 if i['pjdm'] == '':
                     dgksdms.append(i['dgksdm'])
                     teadm.append(i['teadm'])
@@ -579,287 +619,9 @@ def teacher_pj():
                                                     headers=login_headers, json=json_data)
                     json_data_detail = teachers_detail.json()['skInfo']
                     if json_data_detail['jxhjmc'] == '理论':
-                        json_data = {
-                            'pfsm': '',
-                            'dt': [
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000121',
-                                    'zbmc': '教学准备充分，备课认真，教案系统完整，书写规范，能做到既备教材又备学生',
-                                    'zbxmdm': '10000284',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000122',
-                                    'zbmc': '遵守教学纪律，没有停课、误课、迟到、早退和无故调课等现象（如出现上述情况一次即为不合格）',
-                                    'zbxmdm': '10000288',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000149',
-                                    'zbmc': '重视与学生的沟通，耐心解答学生问题，注重教学反馈，不断改进教学方法',
-                                    'zbxmdm': '10000396',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000151',
-                                    'zbmc': '课堂管理严格、教学行为规范，无接听手机、抽烟和坐着讲课现象',
-                                    'zbxmdm': '10000404',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000156',
-                                    'zbmc': '讲解逻辑性、系统性强，启发学生思维，调动学生的学习积极性',
-                                    'zbxmdm': '10000424',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000157',
-                                    'zbmc': '因材施教，注重学生创新和实践能力的培养',
-                                    'zbxmdm': '10000428',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000166',
-                                    'zbmc': '语言文字规范，表达能力强 ，普通话标准、流利，声音洪亮、语速适中、有感染力',
-                                    'zbxmdm': '10000464',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000167',
-                                    'zbmc': '板书工整、有条理、重点突出或课件设计、制作科学性、教育性、艺术性强',
-                                    'zbxmdm': '10000468',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000168',
-                                    'zbmc': '善于选择和使用恰当的教学方法和手段，方法灵活多样',
-                                    'zbxmdm': '10000472',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000169',
-                                    'zbmc': '学生对本门课程学习兴趣高，能掌握本学科的基本知识和方法',
-                                    'zbxmdm': '10000476',
-                                    'fz': 10,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000170',
-                                    'zbmc': '通过本课程的学习，学生能理解和解决一些实际问题，有助于分析问题、解决问题和自学能力提高',
-                                    'zbxmdm': '10000480',
-                                    'fz': 10,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000171',
-                                    'zbmc': '教师的言传身教有助于学生的治学与做人',
-                                    'zbxmdm': '10000484',
-                                    'fz': 10,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000163',
-                                    'zbmc': '基本概念和原理讲解准确、明了，内容充实、严谨，信息量大',
-                                    'zbxmdm': '10000452',
-                                    'fz': 8,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000164',
-                                    'zbmc': '注重教学内容的内在联系，突出重点，抓住难点，深广度适中',
-                                    'zbxmdm': '10000456',
-                                    'fz': 8,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000165',
-                                    'zbmc': '能结合学生的实际组织教学，既重视结果与结论的讲授，又重视方法和过程的讲解',
-                                    'zbxmdm': '10000461',
-                                    'fz': 6.4,
-                                    'dtjg': '良好',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000155',
-                                    'zbmc': '不断更新充实新内容，引进本学科的新成果，创新理念、创新方法贯穿于课堂',
-                                    'zbxmdm': '10000420',
-                                    'fz': 6,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000188',
-                                    'zbmc': '尊重学生，言行得体，教学热情饱满，讲课有感染力，课堂气氛活跃',
-                                    'zbxmdm': '10000740',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                            ],
-                            'wtpf': 98.4,
-                            'wjdm': json_data_detail['qmpj'],
-                            'xnxqdm': json_data_detail['xnxqdm'],
-                            'kcrwdm': json_data_detail['kcrwdm'],
-                            'teadm': json_data_detail['teadm'],
-                            'teabh': json_data_detail['teabh'],
-                            'teaxm': json_data_detail['teaxm'],
-                            'kcptdm': json_data_detail['kcptdm'],
-                            'kcdm': json_data_detail['kcdm'],
-                            'dgksdm': json_data_detail['dgksdm'],
-                            'jxhjdm': json_data_detail['jxhjdm'],
-                        }
+                        json_data = json_data_1
                     else:
-                        json_data = {
-                            'pfsm': '',
-                            'dt': [
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000122',
-                                    'zbmc': '遵守教学纪律，没有停课、误课、迟到、早退和无故调课等现象（如出现上述情况一次即为不合格）',
-                                    'zbxmdm': '10000288',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000135',
-                                    'zbmc': '尊重学生，言行得体，精神饱满',
-                                    'zbxmdm': '10000340',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000136',
-                                    'zbmc': '实验室管理规范，仪器、设备摆放整齐，环境整洁卫生',
-                                    'zbxmdm': '10000344',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000137',
-                                    'zbmc': '指导认真、正确，耐心解答学生提出的问题，实际动手指导学生，能及时处理实验中常见故障',
-                                    'zbxmdm': '10000348',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000138',
-                                    'zbmc': '课堂管理规范严格，实验报告批改认真细致，有针对性的提出问题，无接听手机、抽烟现象',
-                                    'zbxmdm': '10000352',
-                                    'fz': 4,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000139',
-                                    'zbmc': '对学生课前预习情况有检查、提问，实验安排组织合理、系统性强，符合教学大纲',
-                                    'zbxmdm': '10000356',
-                                    'fz': 10,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000140',
-                                    'zbmc': '实验内容充实，实验进度合理，对实验内容、要求和注意事项讲解清楚、准确；重点突出，难点处理得当',
-                                    'zbxmdm': '10000360',
-                                    'fz': 10,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000141',
-                                    'zbmc': '有综合性、设计性或研究性实验内容，且科学合理地设计安排实验过程，各环节对学生能力训练要求明确、具体，可操作性强，能调动学生积极性',
-                                    'zbxmdm': '10000364',
-                                    'fz': 10,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000142',
-                                    'zbmc': '能指导学生认真观察、如实记录实验现象并独立完成实验，启发学生对实验提出新的见解或设计方案',
-                                    'zbxmdm': '10000368',
-                                    'fz': 8,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000144',
-                                    'zbmc': '有效使用现代实验教学手段',
-                                    'zbxmdm': '10000376',
-                                    'fz': 6,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000143',
-                                    'zbmc': '善于启发学生的思维，注重培养学生理论联系实际能力、动手能力、独立操作能力和创新能力',
-                                    'zbxmdm': '10000372',
-                                    'fz': 6,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000168',
-                                    'zbmc': '善于选择和使用恰当的教学方法和手段，方法灵活多样',
-                                    'zbxmdm': '10000472',
-                                    'fz': 10,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000166',
-                                    'zbmc': '语言文字规范，表达能力强 ，普通话标准、流利，声音洪亮、语速适中、有感染力',
-                                    'zbxmdm': '10000464',
-                                    'fz': 10,
-                                    'dtjg': '优秀',
-                                },
-                                {
-                                    'txdm': '1',
-                                    'zbdm': '10000167',
-                                    'zbmc': '板书工整、有条理、重点突出或课件设计、制作科学性、教育性、艺术性强',
-                                    'zbxmdm': '10000469',
-                                    'fz': 8,
-                                    'dtjg': '良好',
-                                },
-                            ],
-                            'wtpf': 98,
-                            'wjdm': json_data_detail['qmpj'],
-                            'xnxqdm': json_data_detail['xnxqdm'],
-                            'kcrwdm': json_data_detail['kcrwdm'],
-                            'teadm': json_data_detail['teadm'],
-                            'teabh': json_data_detail['teabh'],
-                            'teaxm': json_data_detail['teaxm'],
-                            'kcptdm': json_data_detail['kcptdm'],
-                            'kcdm': json_data_detail['kcdm'],
-                            'dgksdm': json_data_detail['dgksdm'],
-                            'jxhjdm': json_data_detail['jxhjdm'],
-                        }
+                        json_data = json_data_2
                     pj = requests.post('https://jwc.htu.edu.cn/dev-api/appapi/Studentpjwj/saveTeaPj',
                                        cookies=new_login_cookies,
                                        headers=login_headers, json=json_data)
@@ -951,7 +713,7 @@ def fun(cookies):
         elif choice == '6':
             teacher_pj()
             username(0)
-        elif choice == '\n':
+        elif choice == '':
             input("按回车键退出...")
             sys.exit()
         else:
@@ -975,13 +737,16 @@ def cookies_read():
                 return cookies
             else:
                 main()
+        # 如果cookies失效或者其他原因
         else:
-            if os.path.exists(r"./login_message\pwd.txt"):
+            # 判断密码是否存在
+            if LOGIN['pwd'] != '':
                 username(1)
             else:
                 main()
+    # 本地cookies为空
     else:
-        if os.path.exists(r"./login_message\pwd.txt"):
+        if LOGIN['pwd'] != '':
             username(1)
         else:
             main()
@@ -1123,7 +888,7 @@ def jsession():
 # 登录函数
 def main():
     print("------------------------登录系统------------------------")
-    print("[1]密码登录   [2]Cookies登录   [3]清除信息   [4]退出登录")
+    print("[1]密码登录   [2]Cookies登录   [3]清除信息   [4]退出程序")
     login_way = input("选择登录方式：")
     if login_way == '1':
         cookies = username(1)
@@ -1137,9 +902,9 @@ def main():
         renew_LOGIN('cookies', '')
         renew_LOGIN('RSA_pwd', '')
         renew_LOGIN('token', '')
-        cookies = username(1)
-        fun(cookies)
-    elif login_way == '\n':
+        print("已清除")
+        main()
+    elif login_way == '':
         input("按回车键退出...")
         sys.exit()
     else:
