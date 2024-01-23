@@ -17,7 +17,7 @@ from js2py import eval_js
 from lxml import html
 
 print("------------------------欢迎使用------------------------")
-current_version = '6.1.4'
+current_version = '6.1.7'
 gitee_url = 'https://gitee.com/xhand_xbh/hnu/raw/master'
 try:
     res_version = requests.get(gitee_url + "/htu_version.json")
@@ -106,11 +106,22 @@ def get_name(cookies):
     logined_url = 'https://jwc.htu.edu.cn/new/welcome.page'
     try:
         logined_response = requests.get(url=logined_url, cookies=cookies).text
+        root = html.fromstring(logined_response)
+        name_elements = root.xpath('(//div[@class="top"])[1]/text()')
+        if name_elements:
+            name = name_elements[0].strip()
+            if name in white_names:
+                return name
+            else:
+                print("登录状态：登录失败！您可能没有使用权限！")
+                renew_LOGIN('id', '')
+                renew_LOGIN('pwd', '')
+                return ""
+        else:
+            print("登录状态：登录失败！")
+            return ""
     except:
         print("用户姓名获取请求失败，错误码：03")
-    root = html.fromstring(logined_response)
-    name_elements = root.xpath('(//div[@class="top"])[1]/text()')
-    return name_elements
 
 
 # 获取课程的上课时间函数
@@ -596,7 +607,7 @@ def teacher_pj():
         y = input("输入[y/Y/回车]确认开始自动评价当前学期：")
         json_data_1 = requests.get(gitee_url + '/pj_details_1.json')  # 理论课
         json_data_2 = requests.get(gitee_url + '/pj_details_2.json')  # 实验课
-        if y == 'y' or "Y" or "\n":
+        if y == 'y' or "Y" or "":
             print("已开始（每门课程评价后延迟5秒）")
             dgksdms = []
             teadm = []
@@ -606,6 +617,13 @@ def teacher_pj():
                 i['kcmc'] = str.replace(i['kcmc'], " ", '')
                 if i['pjdm'] != '':
                     index = index + 1
+                    i['kcmc'] = str.replace(i['kcmc'], "Ⅳ", '四')
+                    i['kcmc'] = str.replace(i['kcmc'], "Ⅱ", '二')
+                    i['kcmc'] = str.replace(i['kcmc'], "Ⅲ", '三')
+                    i['kcmc'] = str.replace(i['kcmc'], "Ⅰ", '一')
+                    i['kcmc'] = str.replace(i['kcmc'], "Ｉ", '一')
+                    i['kcmc'] = str.replace(i['kcmc'], " ", '')
+                    i['kcmc'] = convert_to_fullwidth(i['kcmc'])
                     print("[{:<2}] {:\u3000<3} {:\u3000<12} 已评价".format(index, i['teaxm'], i['kcmc']))
                 if i['pjdm'] == '':
                     dgksdms.append(i['dgksdm'])
@@ -731,22 +749,13 @@ def cookies_read():
         cookies = {
             "JSESSIONID": jsessionid
         }
-        name_elements = get_name(cookies)
-        if name_elements:
-            name = name_elements[0].strip()
-            if name in white_names:
-                print("用户姓名：" + name)
-                fun(cookies)
-                return cookies
-            else:
-                main()
-        # 如果cookies失效或者其他原因
+        name = get_name(cookies)
+        if name != "":
+            print(f"用户姓名：{name}")
+            fun(cookies)
+            return cookies
         else:
-            # 判断密码是否存在
-            if LOGIN['pwd'] != '':
-                username(1)
-            else:
-                main()
+            main()
     # 本地cookies为空
     else:
         if LOGIN['pwd'] != '':
@@ -847,25 +856,17 @@ def username(ifname):
         login_response = requests.post(url=login_url, data=login_data, headers=login_headers, cookies=cookies)
     except:
         print("账号密码登录请求失败，错误码：01")
-    name_elements = get_name(cookies)
-    if name_elements:
-        name = name_elements[0].strip()
-        if name in white_names:
-            if ifname == 1:
-                print(f"用户姓名：{name.strip()}")
-                print(f"登录状态：{login_response.json()['message']}")
-            # print("Cookies:"+jsessionid)
-            encrpt(password, public_key)
-            renew_LOGIN('cookies', jsessionid)
-            fun(cookies)
-            return cookies
-        else:
-            print("登录失败！请检查学号后重新输入")
-            renew_LOGIN('id', '')
-            renew_LOGIN('pwd', '')
-            main()
+    name = get_name(cookies)
+    if name != "":
+        if ifname == 1:
+            print(f"用户姓名：{name.strip()}")
+            print(f"登录状态：{login_response.json()['message']}")
+        # print("Cookies:"+jsessionid)
+        encrpt(password, public_key)
+        renew_LOGIN('cookies', jsessionid)
+        fun(cookies)
+        return cookies
     else:
-        print('登录失败！')
         print(login_response.json()['message'] + "，请检查后重新输入！")
         renew_LOGIN('id', '')
         renew_LOGIN('pwd', '')
@@ -879,18 +880,12 @@ def jsession():
     cookies = {
         "JSESSIONID": jsessionid,
     }
-    name_elements = get_name(cookies)
-    if name_elements:
-        name = name_elements[0].strip()
-        if name in white_names:
-            print("登录状态：登录成功！")
-            renew_LOGIN('cookies', jsessionid)
-            return cookies
-        else:
-            print('登录状态：登录失败')
-            main()
+    name = get_name(cookies)
+    if name != "":
+        print("登录状态：登录成功！")
+        renew_LOGIN('cookies', jsessionid)
+        return cookies
     else:
-        print('登录状态：登录失败')
         main()
 
 
