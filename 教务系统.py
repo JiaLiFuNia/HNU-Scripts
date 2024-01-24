@@ -77,10 +77,10 @@ if not os.path.exists("./login_message/login.json"):
         "cookies": "",
         "token": ""
     }
-    with open("./login_message/login.json", "w", encoding='utf-8') as file:
+    with open("./login_message/login.json", "w") as file:
         file.write(json.dumps(login_message))
     file.close()
-with open(r"./login_message/login.json", "r", encoding='utf-8', errors='ignore') as file:
+with open(r"./login_message/login.json", "r") as file:
     a = file.read()
 if a != '':
     LOGIN = json.loads(a)
@@ -89,14 +89,14 @@ file.close()
 
 # 保存账号密码
 def file_save(path, text):
-    with open(path, "w", encoding='utf-8', errors='ignore') as f:
+    with open(path, "w") as f:
         f.write(text)
 
 
 # 保存文件
 def renew_LOGIN(key, value):
     LOGIN[key] = value
-    with open(r"./login_message/login.json", "w", encoding='utf-8', errors='ignore') as f:
+    with open(r"./login_message/login.json", "w") as f:
         f.write(json.dumps(LOGIN))
     f.close()
 
@@ -818,13 +818,13 @@ def username(ifname):
         aes_response = requests.get(gitee_url + '/aes.js')
     except:
         print("aes.js请求失败，错误码：02")
-    with open(r'./login_message\aes.js', 'wb', encoding='utf-8', errors='ignore') as js_file:
+    with open(r'./login_message\aes.js', 'wb') as js_file:
         js_file.write(aes_response.content)
     # 读取 JavaScript 代码
     js_file_path = r'./login_message\aes.js'
     # 检查文件是否存在
     if os.path.exists(js_file_path):
-        with open(js_file_path, 'r', encoding='utf-8', errors='ignore') as js_file:
+        with open(js_file_path, 'r') as js_file:
             js_code = js_file.read()
     else:
         print("密码加密失败，请使用Cookies登录")
