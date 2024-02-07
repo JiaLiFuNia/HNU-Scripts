@@ -17,7 +17,7 @@ from js2py import eval_js
 from lxml import html
 
 print("------------------------欢迎使用------------------------")
-current_version = '6.1.7'
+current_version = '6.1.8'
 gitee_url = 'https://gitee.com/xhand_xbh/hnu/raw/master'
 try:
     res_version = requests.get(gitee_url + "/htu_version.json")
@@ -504,10 +504,12 @@ def score(cookies):
         requests.post('https://jwc.htu.edu.cn/new/student/xskccj/kccjDatas', cookies=cookies, headers=headers,
                       data=data).json()["rows"]
     if len(score_response) != 0:
-        cjjd_sum = 0
-        cjjd_index = 0
+        cjjd_sum = 0  # 绩点总和
+        cjxf_sum = 0  # 学分总和
+        jd_xf_sum = 0  # 绩点乘以学分
+        pj_index = 0  # 序号
         for scores in score_response:
-            cjjd_index = cjjd_index + 1
+            pj_index = pj_index + 1
             scores['kcmc'] = str.replace(scores['kcmc'], "Ⅳ", '四')
             scores['kcmc'] = str.replace(scores['kcmc'], "Ⅱ", '二')
             scores['kcmc'] = str.replace(scores['kcmc'], "Ⅲ", '三')
@@ -515,11 +517,15 @@ def score(cookies):
             scores['kcmc'] = str.replace(scores['kcmc'], "Ｉ", '一')
             scores['kcmc'] = str.replace(scores['kcmc'], " ", '')
             scores['kcmc'] = convert_to_fullwidth(scores['kcmc'])
-            print("[{:<2}] 课程名称: {:\u3000<10} 总成绩: {:.2f}  绩点: {:.2f}".format(cjjd_index, scores['kcmc'],
-                                                                                       float(scores['zcjfs']),
-                                                                                       float(scores['cjjd'])))
+            print(
+                "[{:<2}] 课程名称: {:\u3000<11} 总成绩: {:.2f}  绩点: {:.2f}  学分：{:}".format(pj_index, scores['kcmc'],
+                                                                                               float(scores['zcjfs']),
+                                                                                               float(scores['cjjd']),
+                                                                                               format(scores['xf'])))
             cjjd_sum = cjjd_sum + scores['cjjd']
-        print('平均绩点：{:.2f}'.format(cjjd_sum / cjjd_index))
+            cjxf_sum = cjxf_sum + scores['xf']
+            jd_xf_sum = scores['cjjd'] * scores['xf'] + jd_xf_sum
+        print('平均绩点：{:.2f} (每门课程绩点×课程学分的和/总学分)'.format(jd_xf_sum / cjxf_sum))
     else:
         print("当前学期没有成绩")
 

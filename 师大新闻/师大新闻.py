@@ -22,12 +22,14 @@ def init_text(text):
 def get_details(url):
     global m
     if url.split('/')[2] != 'web.htu.edu.cn':
-        """res = requests.get(url)
+        res = requests.get(url)
         res.encoding = "utf-8"
         extractor = GeneralNewsExtractor()
-        detail = extractor.extract(res.text, with_body_html=True)"""
+        detail = extractor.extract(res.text, with_body_html=True)
+        """
         downloaded = fetch_url(url)
-        detail = json.loads(extract(downloaded, output_format="json"))
+        detail = json.loads(extract(downloaded, output_format="json"))"""
+        print(detail)
         detail_list = {
             "code": 200,
             "message": "success",
